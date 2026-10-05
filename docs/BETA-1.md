@@ -42,11 +42,12 @@ write into the annotated website repository.
 - Ellipse
 - Line
 - Arrow
+- Double arrow
 - Highlight
 - Per-annotation colour
 - Show or hide annotations
 - Click a numbered marker to inspect its note
-- Recoverable note deletion
+- Confirmed permanent note deletion
 - Responsive note editor and control bar
 
 ## Deliberate limitations

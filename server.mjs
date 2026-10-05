@@ -67,7 +67,7 @@ function validNote(input) {
     && input.note.trim().length > 0
     && input.note.length <= 20_000
     && Array.isArray(input.selection?.points)
-    && ['polygon', 'lasso', 'rectangle', 'ellipse', 'line', 'arrow', 'highlight'].includes(type)
+    && ['polygon', 'lasso', 'rectangle', 'ellipse', 'line', 'arrow', 'double-arrow', 'highlight'].includes(type)
     && input.selection.points.length >= minimumPoints
     && /^#[0-9a-f]{6}$/i.test(input.selection?.color || '#111111');
 }
@@ -151,10 +151,8 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/notes') {
       const notes = await readNotes();
       const pageUrl = url.searchParams.get('url');
-      const includeDeleted = url.searchParams.get('includeDeleted') === '1';
-      const available = includeDeleted ? notes : notes.filter((note) => note.status !== 'deleted');
       json(response, 200, {
-        notes: pageUrl ? available.filter((note) => note.url === pageUrl) : available,
+        notes: pageUrl ? notes.filter((note) => note.url === pageUrl) : notes,
       });
       return;
     }
@@ -189,28 +187,9 @@ const server = createServer(async (request, response) => {
         json(response, 404, { ok: false, error: 'note_not_found' });
         return;
       }
-      notes[index] = {
-        ...notes[index],
-        status: 'deleted',
-        deletedAt: new Date().toISOString(),
-      };
+      const [note] = notes.splice(index, 1);
       await writeNotes(notes);
-      json(response, 200, { ok: true, note: notes[index], recoverable: true });
-      return;
-    }
-
-    const restoreMatch = url.pathname.match(/^\/api\/notes\/([^/]+)\/restore$/);
-    if (request.method === 'POST' && restoreMatch) {
-      const notes = await readNotes();
-      const index = notes.findIndex((note) => note.id === decodeURIComponent(restoreMatch[1]));
-      if (index === -1) {
-        json(response, 404, { ok: false, error: 'note_not_found' });
-        return;
-      }
-      const { deletedAt, ...restored } = notes[index];
-      notes[index] = { ...restored, status: 'open' };
-      await writeNotes(notes);
-      json(response, 200, { ok: true, note: notes[index] });
+      json(response, 200, { ok: true, note, permanent: true });
       return;
     }
 

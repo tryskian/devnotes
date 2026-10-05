@@ -19,7 +19,7 @@ async function waitForServer() {
   throw new Error('test server did not become ready');
 }
 
-test('deleted notes stay recoverable and can be restored', async (context) => {
+test('deleting a note permanently removes it from the ledger', async (context) => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'live-annotation-test-'));
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: new URL('..', import.meta.url),
@@ -61,23 +61,12 @@ test('deleted notes stay recoverable and can be restored', async (context) => {
   const deleteResponse = await fetch(`${origin}/api/notes/${created.note.id}`, { method: 'DELETE' });
   assert.equal(deleteResponse.status, 200);
   const deleted = await deleteResponse.json();
-  assert.equal(deleted.recoverable, true);
-  assert.equal(deleted.note.status, 'deleted');
+  assert.equal(deleted.permanent, true);
+  assert.equal(deleted.note.id, created.note.id);
 
   const visible = await (await fetch(`${origin}/api/notes`)).json();
   assert.deepEqual(visible.notes, []);
 
-  const trash = await (await fetch(`${origin}/api/notes?includeDeleted=1`)).json();
-  assert.equal(trash.notes.length, 1);
-  assert.equal(trash.notes[0].status, 'deleted');
-
-  const restoreResponse = await fetch(`${origin}/api/notes/${created.note.id}/restore`, { method: 'POST' });
-  assert.equal(restoreResponse.status, 200);
-  const restored = await restoreResponse.json();
-  assert.equal(restored.note.status, 'open');
-  assert.equal('deletedAt' in restored.note, false);
-
-  const visibleAgain = await (await fetch(`${origin}/api/notes`)).json();
-  assert.equal(visibleAgain.notes.length, 1);
-  assert.equal(visibleAgain.notes[0].id, created.note.id);
+  const secondDelete = await fetch(`${origin}/api/notes/${created.note.id}`, { method: 'DELETE' });
+  assert.equal(secondDelete.status, 404);
 });

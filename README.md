@@ -38,15 +38,16 @@ preserves the directory without publishing private note content.
 
 - Polygonal lasso: click to place corners, then click the first point or press
   Return to close the selection.
-- Rectangle, ellipse, line, arrow and text-highlight tools use direct dragging.
+- Rectangle, ellipse, line, single-arrow, double-arrow and text-highlight tools
+  use direct dragging.
 - Each annotation stores its own colour, including black and white.
 - The controls and note editor adapt to narrow viewports and mobile safe areas.
 - Element-backed annotations can follow their captured element across a layout
   change. Pure whitespace selections remain viewport-specific.
 - Every note stores its exact shape, URL, title, viewport, scroll position and
   nearby DOM evidence.
-- Clicking a numbered marker opens its note. Deleting from that inspector moves
-  the note into a recoverable local trash state.
+- Clicking a numbered marker opens its note. Deleting from that inspector
+  permanently removes the confirmed note from the local ledger.
 - Notes remain private and local.
 
 ## Beta 1 limitations
@@ -63,11 +64,4 @@ preserves the directory without publishing private note content.
 ```sh
 npm run check
 curl http://127.0.0.1:4347/health
-```
-
-Deleted notes remain available to the local recovery API:
-
-```sh
-curl 'http://127.0.0.1:4347/api/notes?includeDeleted=1'
-curl -X POST 'http://127.0.0.1:4347/api/notes/NOTE_ID/restore'
 ```

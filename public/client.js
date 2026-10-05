@@ -13,6 +13,7 @@
     ellipse: 'Ellipse',
     line: 'Line',
     arrow: 'Arrow',
+    'double-arrow': 'Double arrow',
     highlight: 'Highlight',
   };
 
@@ -131,7 +132,7 @@
     if(type==='polygon'){shape=document.createElementNS(svgNS,'polygon');shape.setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));}
     else if(type==='rectangle'||type==='highlight'){const box=boxFor(points);shape=document.createElementNS(svgNS,'rect');shape.setAttribute('x',box.left);shape.setAttribute('y',box.top);shape.setAttribute('width',box.width);shape.setAttribute('height',box.height);}
     else if(type==='ellipse'){const box=boxFor(points);shape=document.createElementNS(svgNS,'ellipse');shape.setAttribute('cx',box.left+box.width/2);shape.setAttribute('cy',box.top+box.height/2);shape.setAttribute('rx',box.width/2);shape.setAttribute('ry',box.height/2);}
-    else{shape=document.createElementNS(svgNS,'line');shape.setAttribute('x1',points[0].x);shape.setAttribute('y1',points[0].y);shape.setAttribute('x2',points[1].x);shape.setAttribute('y2',points[1].y);if(type==='arrow')shape.setAttribute('marker-end','url(#lia-arrowhead)');}
+    else{shape=document.createElementNS(svgNS,'line');shape.setAttribute('x1',points[0].x);shape.setAttribute('y1',points[0].y);shape.setAttribute('x2',points[1].x);shape.setAttribute('y2',points[1].y);if(type==='arrow'||type==='double-arrow')shape.setAttribute('marker-end','url(#lia-arrowhead)');if(type==='double-arrow')shape.setAttribute('marker-start','url(#lia-arrowhead)');}
     shape.setAttribute('class',`${className}${type==='highlight'?' highlight-shape':''}`);shape.setAttribute('stroke',type==='highlight'?'none':colour);shape.setAttribute('fill',['polygon','rectangle','ellipse','highlight'].includes(type)?colour:'none');return shape;
   }
 
@@ -170,7 +171,7 @@
   root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:{type:draft.type,color:draft.color,points:draft.points,bounds:draft.selectionBounds},elements:draft.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);count.textContent=String(notes.length);cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
   root.querySelector('.cancel').addEventListener('click',cancelDraft);
   root.querySelector('.viewer-close').addEventListener('click',closeViewer);
-  root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Delete note ${note.number}? It will remain recoverable in the local ledger.`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);count.textContent=String(notes.length);closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
+  root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Permanently delete note ${note.number}?`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);count.textContent=String(notes.length);closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
   root.addEventListener('click',(event)=>{const marker=event.target.closest?.('.marker');if(marker)showViewer(marker.dataset.noteId);});
   root.addEventListener('keydown',(event)=>{const marker=event.target.closest?.('.marker');if(marker&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showViewer(marker.dataset.noteId);}});
   drawButton.addEventListener('click',()=>{closeViewer();cancelDraft();setEnabled(!enabled);});

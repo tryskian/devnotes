@@ -37,7 +37,7 @@
       .colour::-webkit-color-swatch-wrapper{padding:0}.colour::-webkit-color-swatch{border:0;border-radius:50%}
       .count{display:grid;min-width:38px;place-items:center;padding:0 8px;font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .surface{position:fixed;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.surface.drawing{cursor:crosshair;pointer-events:auto;touch-action:none}
-      .saved-shape,.draft-shape{stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}.saved-shape{fill-opacity:.08}.draft-shape{fill-opacity:.05;stroke-dasharray:5 4}
+      .saved-shape,.draft-shape{stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}.saved-shape{fill-opacity:.08;pointer-events:all;cursor:pointer}.draft-shape{fill-opacity:.05;stroke-dasharray:5 4}
       .saved-shape.highlight-shape{stroke:none;fill-opacity:.28}.draft-shape.highlight-shape{stroke:none;fill-opacity:.22}
       .draft-vertex{fill:#fefefe;stroke-width:2;vector-effect:non-scaling-stroke}.draft-vertex.start{stroke:#fefefe;stroke-width:2}
       .marker{pointer-events:all;cursor:pointer}.marker circle{stroke:#fefefe;stroke-width:1.5}.marker text{fill:#fefefe;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-anchor:middle;dominant-baseline:central}
@@ -140,7 +140,9 @@
     savedLayer.replaceChildren(); if (!visible) return;
     for (const note of notes) {
       const selection = responsiveSelection(note);
-      savedLayer.append(shapeFor(selection,'saved-shape'));
+      const shape = shapeFor(selection,'saved-shape');
+      shape.dataset.noteId = note.id;
+      savedLayer.append(shape);
       const first=viewportPoint(selection.points[0]),colour=selection.color||'#111111',marker=document.createElementNS(svgNS,'g');marker.setAttribute('class','marker');marker.setAttribute('transform',`translate(${first.x},${first.y})`);marker.dataset.noteId=note.id;marker.setAttribute('tabindex','0');marker.setAttribute('role','button');marker.setAttribute('aria-label',`Open note ${note.number}`);
       const circle=document.createElementNS(svgNS,'circle');circle.setAttribute('r','12');circle.setAttribute('fill',colour);const label=document.createElementNS(svgNS,'text');label.textContent=String(note.number);marker.append(circle,label);savedLayer.append(marker);
     }
@@ -158,6 +160,7 @@
   function finishDraft() { if(!draft)return;const minimum=draft.type==='polygon'?3:2;if(draft.points.length<minimum){status.textContent=`Place at least ${minimum} points.`;return;}draft.hover=null;draft.selectionBounds=boxFor(draft.points);if(draft.selectionBounds.width<5&&draft.selectionBounds.height<5){cancelDraft();return;}draft.elements=elementsWithin(draft.selectionBounds);setEnabled(false);editor.hidden=false;queueMicrotask(()=>textArea.focus()); }
 
   surface.addEventListener('pointerdown',(event)=>{
+    if(event.target.closest?.('[data-note-id]'))return;
     if(!enabled||!editor.hidden)return;const point=eventPoint(event),type=toolSelect.value;
     if(type==='polygon'){
       if(!draft)draft={type,color:colourInput.value,points:[point],hover:point};
@@ -172,7 +175,8 @@
   root.querySelector('.cancel').addEventListener('click',cancelDraft);
   root.querySelector('.viewer-close').addEventListener('click',closeViewer);
   root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Permanently delete note ${note.number}?`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);count.textContent=String(notes.length);closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
-  root.addEventListener('click',(event)=>{const marker=event.target.closest?.('.marker');if(marker)showViewer(marker.dataset.noteId);});
+  root.addEventListener('pointerdown',(event)=>{if(event.target.closest?.('[data-note-id]'))event.stopPropagation();});
+  root.addEventListener('click',(event)=>{const annotation=event.target.closest?.('[data-note-id]');if(annotation){event.preventDefault();event.stopPropagation();showViewer(annotation.dataset.noteId);}});
   root.addEventListener('keydown',(event)=>{const marker=event.target.closest?.('.marker');if(marker&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showViewer(marker.dataset.noteId);}});
   drawButton.addEventListener('click',()=>{closeViewer();cancelDraft();setEnabled(!enabled);});
   toolSelect.addEventListener('change',()=>{cancelDraft();if(enabled)drawButton.textContent='Drawing';});

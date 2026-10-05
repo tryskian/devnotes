@@ -38,6 +38,16 @@ test('deleting a note permanently removes it from the ledger', async (context) =
 
   await waitForServer();
 
+  const preflightResponse = await fetch(`${origin}/api/notes/test-note`, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'http://127.0.0.1:4331',
+      'Access-Control-Request-Method': 'DELETE',
+    },
+  });
+  assert.equal(preflightResponse.status, 204);
+  assert.match(preflightResponse.headers.get('access-control-allow-methods') || '', /DELETE/);
+
   const createResponse = await fetch(`${origin}/api/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,12 +1,14 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const clientPath = join(root, 'public', 'client.js');
-const dataDirectory = join(root, '.data');
+const dataDirectory = process.env.ANNOTATION_DATA_DIR
+  ? resolve(process.env.ANNOTATION_DATA_DIR)
+  : join(root, '.data');
 const notesPath = join(dataDirectory, 'notes.json');
 const port = Number.parseInt(process.env.ANNOTATION_PORT || '4347', 10);
 const host = '127.0.0.1';
@@ -149,8 +151,10 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/notes') {
       const notes = await readNotes();
       const pageUrl = url.searchParams.get('url');
+      const includeDeleted = url.searchParams.get('includeDeleted') === '1';
+      const available = includeDeleted ? notes : notes.filter((note) => note.status !== 'deleted');
       json(response, 200, {
-        notes: pageUrl ? notes.filter((note) => note.url === pageUrl) : notes,
+        notes: pageUrl ? available.filter((note) => note.url === pageUrl) : available,
       });
       return;
     }
@@ -174,6 +178,39 @@ const server = createServer(async (request, response) => {
       notes.push(note);
       await writeNotes(notes);
       json(response, 201, { ok: true, note });
+      return;
+    }
+
+    const noteMatch = url.pathname.match(/^\/api\/notes\/([^/]+)$/);
+    if (request.method === 'DELETE' && noteMatch) {
+      const notes = await readNotes();
+      const index = notes.findIndex((note) => note.id === decodeURIComponent(noteMatch[1]));
+      if (index === -1) {
+        json(response, 404, { ok: false, error: 'note_not_found' });
+        return;
+      }
+      notes[index] = {
+        ...notes[index],
+        status: 'deleted',
+        deletedAt: new Date().toISOString(),
+      };
+      await writeNotes(notes);
+      json(response, 200, { ok: true, note: notes[index], recoverable: true });
+      return;
+    }
+
+    const restoreMatch = url.pathname.match(/^\/api\/notes\/([^/]+)\/restore$/);
+    if (request.method === 'POST' && restoreMatch) {
+      const notes = await readNotes();
+      const index = notes.findIndex((note) => note.id === decodeURIComponent(restoreMatch[1]));
+      if (index === -1) {
+        json(response, 404, { ok: false, error: 'note_not_found' });
+        return;
+      }
+      const { deletedAt, ...restored } = notes[index];
+      notes[index] = { ...restored, status: 'open' };
+      await writeNotes(notes);
+      json(response, 200, { ok: true, note: notes[index] });
       return;
     }
 

@@ -39,14 +39,15 @@
       .saved-shape,.draft-shape{stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}.saved-shape{fill-opacity:.08}.draft-shape{fill-opacity:.05;stroke-dasharray:5 4}
       .saved-shape.highlight-shape{stroke:none;fill-opacity:.28}.draft-shape.highlight-shape{stroke:none;fill-opacity:.22}
       .draft-vertex{fill:#fefefe;stroke-width:2;vector-effect:non-scaling-stroke}.draft-vertex.start{stroke:#fefefe;stroke-width:2}
-      .marker circle{stroke:#fefefe;stroke-width:1.5}.marker text{fill:#fefefe;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-anchor:middle;dominant-baseline:central}
-      .editor{position:fixed;right:max(18px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:min(360px,calc(100vw - 36px));max-height:calc(100svh - 36px);overflow:auto;padding:14px;background:#fefefe;border:1px solid #050505;pointer-events:auto}
-      .editor[hidden]{display:none}.editor-label{display:block;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;font:500 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .marker{pointer-events:all;cursor:pointer}.marker circle{stroke:#fefefe;stroke-width:1.5}.marker text{fill:#fefefe;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-anchor:middle;dominant-baseline:central}
+      .editor,.viewer{position:fixed;right:max(18px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:min(360px,calc(100vw - 36px));max-height:calc(100svh - 36px);overflow:auto;padding:14px;background:#fefefe;border:1px solid #050505;pointer-events:auto}
+      .editor[hidden],.viewer[hidden]{display:none}.editor-label,.viewer-label{display:block;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;font:500 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .viewer-note{margin:0;white-space:pre-wrap;font:500 14px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.viewer-meta{margin:0 0 12px;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.06em}
       textarea{display:block;width:100%;min-height:112px;resize:vertical;border:1px solid #050505;border-radius:0;padding:10px;background:#fefefe;color:#050505}
       .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.actions button{padding:8px 11px;border:1px solid #050505}.save{background:#050505;color:#fefefe}.status{min-height:16px;margin:9px 0 0;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      @media(max-width:600px){.dock{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) 44px auto 38px 34px 34px}.dock select{width:100%;max-width:none}.dock button{padding:0 7px}.count{min-width:0;padding:0 5px}.editor{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;max-height:calc(100svh - 88px)}}
+      @media(max-width:600px){.dock{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) 44px auto 38px 34px 34px}.dock select{width:100%;max-width:none}.dock button{padding:0 7px}.count{min-width:0;padding:0 5px}.editor,.viewer{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;max-height:calc(100svh - 88px)}}
     </style>
-    <svg class="surface" aria-hidden="true">
+    <svg class="surface">
       <defs><marker id="lia-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"></path></marker></defs>
       <g class="saved"></g><g class="draft"></g><g class="vertices"></g>
     </svg>
@@ -55,6 +56,13 @@
       <textarea id="lia-note" placeholder="What do you notice?"></textarea>
       <div class="actions"><button class="cancel" type="button">Cancel</button><button class="save" type="button">Save note</button></div>
       <p class="status" role="status"></p>
+    </section>
+    <section class="viewer" hidden aria-label="Saved note">
+      <span class="viewer-label">Saved note</span>
+      <p class="viewer-meta"></p>
+      <p class="viewer-note"></p>
+      <div class="actions"><button class="viewer-close" type="button">Close</button><button class="delete-note" type="button">Delete note</button></div>
+      <p class="viewer-status status" role="status"></p>
     </section>
     <div class="dock" aria-label="Live annotation controls">
       <select class="tool" aria-label="Drawing tool">${Object.entries(tools).map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select>
@@ -70,6 +78,10 @@
   const draftLayer = root.querySelector('.draft');
   const vertices = root.querySelector('.vertices');
   const editor = root.querySelector('.editor');
+  const viewer = root.querySelector('.viewer');
+  const viewerMeta = root.querySelector('.viewer-meta');
+  const viewerNote = root.querySelector('.viewer-note');
+  const viewerStatus = root.querySelector('.viewer-status');
   const textArea = root.querySelector('textarea');
   const status = root.querySelector('.status');
   const toolSelect = root.querySelector('.tool');
@@ -82,6 +94,7 @@
   let visible = true;
   let draft = null;
   let notes = [];
+  let viewedNoteId = null;
 
   const pageUrl = () => `${location.origin}${location.pathname}${location.search}`;
   const eventPoint = (event) => ({ x: Math.round((event.clientX + scrollX) * 10) / 10, y: Math.round((event.clientY + scrollY) * 10) / 10 });
@@ -127,7 +140,7 @@
     for (const note of notes) {
       const selection = responsiveSelection(note);
       savedLayer.append(shapeFor(selection,'saved-shape'));
-      const first=viewportPoint(selection.points[0]),colour=selection.color||'#111111',marker=document.createElementNS(svgNS,'g');marker.setAttribute('class','marker');marker.setAttribute('transform',`translate(${first.x},${first.y})`);
+      const first=viewportPoint(selection.points[0]),colour=selection.color||'#111111',marker=document.createElementNS(svgNS,'g');marker.setAttribute('class','marker');marker.setAttribute('transform',`translate(${first.x},${first.y})`);marker.dataset.noteId=note.id;marker.setAttribute('tabindex','0');marker.setAttribute('role','button');marker.setAttribute('aria-label',`Open note ${note.number}`);
       const circle=document.createElementNS(svgNS,'circle');circle.setAttribute('r','12');circle.setAttribute('fill',colour);const label=document.createElementNS(svgNS,'text');label.textContent=String(note.number);marker.append(circle,label);savedLayer.append(marker);
     }
   }
@@ -138,6 +151,8 @@
   }
   function setEnabled(next) { enabled=next;drawButton.setAttribute('aria-pressed',String(enabled));surface.classList.toggle('drawing',enabled);drawButton.textContent=enabled?'Drawing':'Draw';if(!enabled)dragging=false; }
   function cancelDraft() { draft=null;draftLayer.replaceChildren();vertices.replaceChildren();editor.hidden=true;textArea.value='';status.textContent=''; }
+  function closeViewer() { viewedNoteId=null;viewer.hidden=true;viewerStatus.textContent=''; }
+  function showViewer(noteId) { const note=notes.find(item=>item.id===noteId);if(!note)return;cancelDraft();setEnabled(false);viewedNoteId=note.id;viewerMeta.textContent=`Note ${note.number} · ${tools[note.selection.type]||note.selection.type}`;viewerNote.textContent=note.note;viewerStatus.textContent='';viewer.hidden=false; }
   async function loadNotes() { const response=await fetch(`${api}/api/notes?url=${encodeURIComponent(pageUrl())}`);if(!response.ok)throw new Error(`load_failed_${response.status}`);notes=(await response.json()).notes;count.textContent=String(notes.length);render(); }
   function finishDraft() { if(!draft)return;const minimum=draft.type==='polygon'?3:2;if(draft.points.length<minimum){status.textContent=`Place at least ${minimum} points.`;return;}draft.hover=null;draft.selectionBounds=boxFor(draft.points);if(draft.selectionBounds.width<5&&draft.selectionBounds.height<5){cancelDraft();return;}draft.elements=elementsWithin(draft.selectionBounds);setEnabled(false);editor.hidden=false;queueMicrotask(()=>textArea.focus()); }
 
@@ -154,12 +169,16 @@
   surface.addEventListener('pointerup',(event)=>{if(!dragging||!draft||draft.type==='polygon')return;dragging=false;surface.releasePointerCapture(event.pointerId);if(distance(draft.points[0],draft.points[1])<6){cancelDraft();return;}finishDraft();event.preventDefault();});
   root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:{type:draft.type,color:draft.color,points:draft.points,bounds:draft.selectionBounds},elements:draft.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);count.textContent=String(notes.length);cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
   root.querySelector('.cancel').addEventListener('click',cancelDraft);
-  drawButton.addEventListener('click',()=>{cancelDraft();setEnabled(!enabled);});
+  root.querySelector('.viewer-close').addEventListener('click',closeViewer);
+  root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Delete note ${note.number}? It will remain recoverable in the local ledger.`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);count.textContent=String(notes.length);closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
+  root.addEventListener('click',(event)=>{const marker=event.target.closest?.('.marker');if(marker)showViewer(marker.dataset.noteId);});
+  root.addEventListener('keydown',(event)=>{const marker=event.target.closest?.('.marker');if(marker&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showViewer(marker.dataset.noteId);}});
+  drawButton.addEventListener('click',()=>{closeViewer();cancelDraft();setEnabled(!enabled);});
   toolSelect.addEventListener('change',()=>{cancelDraft();if(enabled)drawButton.textContent='Drawing';});
   visibilityButton.addEventListener('click',()=>{visible=!visible;visibilityButton.setAttribute('aria-pressed',String(visible));render();});
   root.querySelector('.close').addEventListener('click',()=>{host.remove();delete window.__liveInterfaceAnnotationPrototype;});
   addEventListener('scroll',()=>{render();renderDraft();},{passive:true});addEventListener('resize',()=>{render();renderDraft();});
-  addEventListener('keydown',(event)=>{if(event.key==='Escape'){cancelDraft();setEnabled(false);}else if(event.key==='Enter'&&enabled&&draft?.type==='polygon'&&draft.points.length>=3){event.preventDefault();finishDraft();}});
+  addEventListener('keydown',(event)=>{if(event.key==='Escape'){closeViewer();cancelDraft();setEnabled(false);}else if(event.key==='Enter'&&enabled&&draft?.type==='polygon'&&draft.points.length>=3){event.preventDefault();finishDraft();}});
   window.__liveInterfaceAnnotationPrototype={show:()=>{host.style.display='';loadNotes().catch(()=>{});},hide:()=>{host.style.display='none';},remove:()=>{host.remove();delete window.__liveInterfaceAnnotationPrototype;},reload:loadNotes};
   loadNotes().catch(error=>{count.textContent='!';count.title=error.message;});
 })();

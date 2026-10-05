@@ -45,6 +45,8 @@ preserves the directory without publishing private note content.
   change. Pure whitespace selections remain viewport-specific.
 - Every note stores its exact shape, URL, title, viewport, scroll position and
   nearby DOM evidence.
+- Clicking a numbered marker opens its note. Deleting from that inspector moves
+  the note into a recoverable local trash state.
 - Notes remain private and local.
 
 ## Beta 1 limitations
@@ -61,4 +63,11 @@ preserves the directory without publishing private note content.
 ```sh
 npm run check
 curl http://127.0.0.1:4347/health
+```
+
+Deleted notes remain available to the local recovery API:
+
+```sh
+curl 'http://127.0.0.1:4347/api/notes?includeDeleted=1'
+curl -X POST 'http://127.0.0.1:4347/api/notes/NOTE_ID/restore'
 ```

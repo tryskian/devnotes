@@ -44,7 +44,10 @@ write into the annotated website repository.
 - Arrow
 - Double arrow
 - Highlight
+- Live text selection with exact quotation and range anchors
 - Per-annotation colour
+- Persistent tool and colour preferences
+- Persistent annotation session with explicit Done or Escape exit
 - Show or hide annotations
 - Click a numbered marker to inspect its note
 - Edit note text while preserving annotation geometry and context

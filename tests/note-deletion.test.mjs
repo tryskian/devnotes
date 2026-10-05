@@ -75,6 +75,18 @@ test('notes can be edited, deleted, and cleared by page', async (context) => {
   assert.match(preflightResponse.headers.get('access-control-allow-methods') || '', /DELETE/);
   assert.match(preflightResponse.headers.get('access-control-allow-methods') || '', /PATCH/);
 
+  const defaultPreferences = await (await fetch(`${origin}/api/preferences`)).json();
+  assert.deepEqual(defaultPreferences.preferences, { color: '#111111', tool: 'polygon' });
+
+  const preferenceResponse = await fetch(`${origin}/api/preferences`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ color: '#f20707', tool: 'text' }),
+  });
+  assert.equal(preferenceResponse.status, 200);
+  const savedPreferences = await preferenceResponse.json();
+  assert.deepEqual(savedPreferences.preferences, { color: '#f20707', tool: 'text' });
+
   const pageA = 'http://127.0.0.1:4331/';
   const pageB = 'http://127.0.0.1:4331/about/';
   const created = await createNote(pageA, 'Temporary deletion test');
@@ -106,12 +118,28 @@ test('notes can be edited, deleted, and cleared by page', async (context) => {
 
   await createNote(pageA, 'Page A note one');
   await createNote(pageA, 'Page A note two');
+  const textPayload = notePayload(pageA, 'Page A text note');
+  textPayload.selection = {
+    type: 'text',
+    color: '#f20707',
+    quote: 'Selected live text',
+    rects: [{ left: 10, top: 10, width: 100, height: 20 }],
+    points: [{ x: 10, y: 10 }, { x: 110, y: 30 }],
+    bounds: { left: 10, top: 10, width: 100, height: 20 },
+    range: { startPath: [0], startOffset: 0, endPath: [0], endOffset: 18, prefix: '', suffix: '' },
+  };
+  const textCreateResponse = await fetch(`${origin}/api/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(textPayload),
+  });
+  assert.equal(textCreateResponse.status, 201);
   const pageBNote = await createNote(pageB, 'Page B note');
 
   const clearResponse = await fetch(`${origin}/api/notes?url=${encodeURIComponent(pageA)}`, { method: 'DELETE' });
   assert.equal(clearResponse.status, 200);
   const cleared = await clearResponse.json();
-  assert.equal(cleared.deletedCount, 2);
+  assert.equal(cleared.deletedCount, 3);
   assert.equal(cleared.pageUrl, pageA);
   assert.equal(cleared.permanent, true);
 

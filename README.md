@@ -38,12 +38,20 @@ preserves the directory without publishing private note content.
 
 - Polygonal lasso: click to place corners, then click the first point or press
   Return to close the selection.
-- Rectangle, ellipse, line, single-arrow, double-arrow and text-highlight tools
+- Rectangle, ellipse, line, single-arrow, double-arrow and area-highlight tools
   use direct dragging.
+- Text uses the browser's native live selection and stores the exact quotation,
+  DOM range anchors, surrounding quote context and per-line rectangles.
 - Each annotation stores its own colour, including black and white.
+- The selected tool and colour persist through the private loopback service.
+- Annotation mode stays active across successive notes. Selecting a tool arms
+  it immediately; Start resumes the selected tool; Done or Escape returns the
+  page to normal interaction.
 - The controls and note editor adapt to narrow viewports and mobile safe areas.
 - Element-backed annotations can follow their captured element across a layout
   change. Pure whitespace selections remain viewport-specific.
+- Text annotations re-resolve their exact DOM range first, then fall back to
+  quote and surrounding-context matching when the page structure changes.
 - Every note stores its exact shape, URL, title, viewport, scroll position and
   nearby DOM evidence.
 - Clicking a numbered marker opens its note. Deleting from that inspector

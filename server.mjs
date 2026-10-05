@@ -10,6 +10,7 @@ const dataDirectory = process.env.ANNOTATION_DATA_DIR
   ? resolve(process.env.ANNOTATION_DATA_DIR)
   : join(root, '.data');
 const notesPath = join(dataDirectory, 'notes.json');
+const preferencesPath = join(dataDirectory, 'preferences.json');
 const port = Number.parseInt(process.env.ANNOTATION_PORT || '4347', 10);
 const host = '127.0.0.1';
 
@@ -38,6 +39,25 @@ async function writeNotes(notes) {
   await rename(temporaryPath, notesPath);
 }
 
+async function readPreferences() {
+  try {
+    const value = JSON.parse(await readFile(preferencesPath, 'utf8'));
+    return {
+      color: /^#[0-9a-f]{6}$/i.test(value?.color || '') ? value.color : '#111111',
+      tool: typeof value?.tool === 'string' ? value.tool : 'polygon',
+    };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { color: '#111111', tool: 'polygon' };
+    throw error;
+  }
+}
+
+async function writePreferences(preferences) {
+  const temporaryPath = `${preferencesPath}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(preferences, null, 2)}\n`, 'utf8');
+  await rename(temporaryPath, preferencesPath);
+}
+
 function json(response, status, body) {
   response.writeHead(status, {
     ...headers,
@@ -60,6 +80,7 @@ async function readBody(request) {
 function validNote(input) {
   const type = input?.selection?.type;
   const minimumPoints = type === 'polygon' || type === 'lasso' ? 3 : 2;
+  const allowedTypes = ['polygon', 'lasso', 'rectangle', 'ellipse', 'line', 'arrow', 'double-arrow', 'highlight', 'text'];
   return input
     && typeof input.url === 'string'
     && input.url.length <= 4_096
@@ -67,9 +88,10 @@ function validNote(input) {
     && input.note.trim().length > 0
     && input.note.length <= 20_000
     && Array.isArray(input.selection?.points)
-    && ['polygon', 'lasso', 'rectangle', 'ellipse', 'line', 'arrow', 'double-arrow', 'highlight'].includes(type)
+    && allowedTypes.includes(type)
     && input.selection.points.length >= minimumPoints
-    && /^#[0-9a-f]{6}$/i.test(input.selection?.color || '#111111');
+    && /^#[0-9a-f]{6}$/i.test(input.selection?.color || '#111111')
+    && (type !== 'text' || (typeof input.selection?.quote === 'string' && input.selection.quote.length > 0 && Array.isArray(input.selection?.rects)));
 }
 
 const bookmarklet = "javascript:(()=>{const old=document.getElementById('live-interface-annotation-loader');if(old)old.remove();const s=document.createElement('script');s.id='live-interface-annotation-loader';s.src='http://127.0.0.1:4347/client.js';document.documentElement.append(s)})()";
@@ -145,6 +167,23 @@ const server = createServer(async (request, response) => {
         'Content-Type': 'text/javascript; charset=utf-8',
       });
       response.end(source);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/preferences') {
+      json(response, 200, { preferences: await readPreferences() });
+      return;
+    }
+
+    if (request.method === 'PATCH' && url.pathname === '/api/preferences') {
+      const input = await readBody(request);
+      const current = await readPreferences();
+      const next = {
+        color: /^#[0-9a-f]{6}$/i.test(input?.color || '') ? input.color : current.color,
+        tool: ['polygon', 'rectangle', 'ellipse', 'line', 'arrow', 'double-arrow', 'highlight', 'text'].includes(input?.tool) ? input.tool : current.tool,
+      };
+      await writePreferences(next);
+      json(response, 200, { ok: true, preferences: next });
       return;
     }
 

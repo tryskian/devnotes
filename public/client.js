@@ -43,7 +43,7 @@
       .draft-vertex{fill:#fefefe;stroke-width:2;vector-effect:non-scaling-stroke}.draft-vertex.start{stroke:#fefefe;stroke-width:2}
       .marker{pointer-events:all;cursor:pointer}.marker circle{stroke:#fefefe;stroke-width:1.5}.marker text{fill:#fefefe;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-anchor:middle;dominant-baseline:central}
       .editor,.viewer{position:fixed;right:max(18px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));width:min(360px,calc(100vw - 36px));max-height:calc(100svh - 36px);overflow:auto;padding:14px;background:#fefefe;border:1px solid #050505;pointer-events:auto}
-      .editor[hidden],.viewer[hidden]{display:none}.editor-label,.viewer-label{display:block;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;font:500 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .editor[hidden],.viewer[hidden]{display:none}.panel-handle{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 10px;cursor:grab;touch-action:none;user-select:none}.panel-handle:active{cursor:grabbing}.editor-label,.viewer-label{display:block;margin:0;text-transform:uppercase;letter-spacing:.08em;font:500 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.drag-mark{color:#555;font:500 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .viewer-note{margin:0;white-space:pre-wrap;font:500 14px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.viewer-meta{margin:0 0 12px;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.06em}
       textarea{display:block;width:100%;min-height:112px;resize:vertical;border:1px solid #050505;border-radius:0;padding:10px;background:#fefefe;color:#050505}
       .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.actions button{padding:8px 11px;border:1px solid #050505}.save{background:#050505;color:#fefefe}.status{min-height:16px;margin:9px 0 0;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
@@ -54,13 +54,13 @@
       <g class="saved"></g><g class="draft"></g><g class="vertices"></g>
     </svg>
     <section class="editor" hidden aria-label="Selection note">
-      <label class="editor-label" for="lia-note">Note on this shape</label>
+      <div class="panel-handle" title="Drag to move · double-click to reset"><label class="editor-label" for="lia-note">Note on this shape</label><span class="drag-mark" aria-hidden="true">↕</span></div>
       <textarea id="lia-note" placeholder="What do you notice?"></textarea>
       <div class="actions"><button class="cancel" type="button">Cancel</button><button class="save" type="button">Save note</button></div>
       <p class="status" role="status"></p>
     </section>
     <section class="viewer" hidden aria-label="Saved note">
-      <span class="viewer-label">Saved note</span>
+      <div class="panel-handle" title="Drag to move · double-click to reset"><span class="viewer-label">Saved note</span><span class="drag-mark" aria-hidden="true">↕</span></div>
       <p class="viewer-meta"></p>
       <p class="viewer-note"></p>
       <textarea class="viewer-edit" aria-label="Edit note text" hidden></textarea>
@@ -109,6 +109,58 @@
   const eventPoint = (event) => ({ x: Math.round((event.clientX + scrollX) * 10) / 10, y: Math.round((event.clientY + scrollY) * 10) / 10 });
   const viewportPoint = (point) => ({ x: point.x - scrollX, y: point.y - scrollY });
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  function clampPanel(panel) {
+    if (!panel.dataset.moved || panel.hidden) return;
+    const rect = panel.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.min(Math.max(margin, rect.left), Math.max(margin, innerWidth - rect.width - margin));
+    const top = Math.min(Math.max(margin, rect.top), Math.max(margin, innerHeight - rect.height - margin));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = 'auto';
+  }
+  function resetPanel(panel) {
+    delete panel.dataset.moved;
+    panel.style.removeProperty('left');
+    panel.style.removeProperty('top');
+    panel.style.removeProperty('right');
+  }
+  function makeDraggable(panel) {
+    const handle = panel.querySelector('.panel-handle');
+    let drag = null;
+    const move = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const left = drag.left + event.clientX - drag.x;
+      const top = drag.top + event.clientY - drag.y;
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+      clampPanel(panel);
+    };
+    const finish = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      drag = null;
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', finish);
+      removeEventListener('pointercancel', finish);
+    };
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const rect = panel.getBoundingClientRect();
+      panel.dataset.moved = 'true';
+      panel.style.left = `${rect.left}px`;
+      panel.style.top = `${rect.top}px`;
+      panel.style.right = 'auto';
+      drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+      addEventListener('pointermove', move);
+      addEventListener('pointerup', finish);
+      addEventListener('pointercancel', finish);
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    handle.addEventListener('dblclick', () => resetPanel(panel));
+  }
+  makeDraggable(editor);
+  makeDraggable(viewer);
   function boxFor(points) { const xs=points.map(p=>p.x),ys=points.map(p=>p.y),left=Math.min(...xs),top=Math.min(...ys);return {left,top,width:Math.max(...xs)-left,height:Math.max(...ys)-top}; }
   function selectorFor(element) { if (!(element instanceof Element)) return null; if (element.id) return `#${CSS.escape(element.id)}`; const classes=[...element.classList].slice(0,3).map(name=>`.${CSS.escape(name)}`).join(''); return `${element.tagName.toLowerCase()}${classes}`; }
   function elementsWithin(box) {
@@ -196,7 +248,7 @@
   toolSelect.addEventListener('change',()=>{cancelDraft();if(enabled)drawButton.textContent='Drawing';});
   visibilityButton.addEventListener('click',()=>{visible=!visible;visibilityButton.setAttribute('aria-pressed',String(visible));render();});
   root.querySelector('.close').addEventListener('click',()=>{host.remove();delete window.__liveInterfaceAnnotationPrototype;});
-  addEventListener('scroll',()=>{render();renderDraft();},{passive:true});addEventListener('resize',()=>{render();renderDraft();});
+  addEventListener('scroll',()=>{render();renderDraft();},{passive:true});addEventListener('resize',()=>{render();renderDraft();clampPanel(editor);clampPanel(viewer);});
   addEventListener('keydown',(event)=>{if(event.key==='Escape'){closeViewer();cancelDraft();setEnabled(false);}else if(event.key==='Enter'&&enabled&&draft?.type==='polygon'&&draft.points.length>=3){event.preventDefault();finishDraft();}});
   window.__liveInterfaceAnnotationPrototype={show:()=>{host.style.display='';loadNotes().catch(()=>{});},hide:()=>{host.style.display='none';},remove:()=>{host.remove();delete window.__liveInterfaceAnnotationPrototype;},reload:loadNotes};
   loadNotes().catch(error=>{count.textContent='!';count.title=error.message;});

@@ -50,6 +50,9 @@ preserves the directory without publishing private note content.
   permanently removes the confirmed note from the local ledger.
 - Note text can be edited without replacing its shape, colour, browser context
   or creation identity.
+- The new-note editor and saved-note inspector can be dragged by their header so
+  they do not cover the page being discussed. Double-clicking the header resets
+  the panel position.
 - Clear page notes permanently removes only the notes attached to the current
   page URL after confirming the exact count.
 - Notes remain private and local.

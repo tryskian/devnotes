@@ -51,6 +51,7 @@ write into the annotated website repository.
 - Confirmed permanent note deletion
 - Confirmed page-scoped note clearing
 - Responsive note editor and control bar
+- Draggable new-note and saved-note panels with viewport clamping
 
 ## Deliberate limitations
 

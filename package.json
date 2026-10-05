@@ -1,0 +1,12 @@
+{
+  "name": "live-interface-annotation-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "check": "node --check server.mjs && node --check public/client.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

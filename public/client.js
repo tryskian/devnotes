@@ -29,6 +29,7 @@
       button,select,textarea,input{font:500 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       button,select{min-height:42px;border:0;border-right:1px solid #050505;background:#fefefe;color:#050505;border-radius:0;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
       button:hover,button[aria-pressed="true"]{background:#050505;color:#fefefe}
+      button:disabled{cursor:not-allowed;opacity:.35;background:#fefefe;color:#050505}
       button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid #050505;outline-offset:3px}
       .dock{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));display:flex;align-items:stretch;max-width:calc(100vw - 36px);pointer-events:auto;background:#fefefe;border:1px solid #050505}
       .dock select{max-width:132px;padding:0 30px 0 12px}.dock button{padding:0 12px}.dock button:last-child{border-right:0}
@@ -46,7 +47,7 @@
       .viewer-note{margin:0;white-space:pre-wrap;font:500 14px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.viewer-meta{margin:0 0 12px;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.06em}
       textarea{display:block;width:100%;min-height:112px;resize:vertical;border:1px solid #050505;border-radius:0;padding:10px;background:#fefefe;color:#050505}
       .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.actions button{padding:8px 11px;border:1px solid #050505}.save{background:#050505;color:#fefefe}.status{min-height:16px;margin:9px 0 0;color:#555;font:500 11px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      @media(max-width:600px){.dock{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) 44px auto 38px 34px 34px}.dock select{width:100%;max-width:none}.dock button{padding:0 7px}.count{min-width:0;padding:0 5px}.editor,.viewer{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;max-height:calc(100svh - 88px)}}
+      @media(max-width:600px){.dock{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:minmax(0,1fr) 40px auto 34px 28px auto 28px}.dock select{width:100%;max-width:none}.dock button{padding:0 6px}.count{min-width:0;padding:0 4px}.editor,.viewer{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;max-height:calc(100svh - 88px)}}
     </style>
     <svg class="surface">
       <defs><marker id="lia-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"></path></marker></defs>
@@ -62,7 +63,9 @@
       <span class="viewer-label">Saved note</span>
       <p class="viewer-meta"></p>
       <p class="viewer-note"></p>
-      <div class="actions"><button class="viewer-close" type="button">Close</button><button class="delete-note" type="button">Delete note</button></div>
+      <textarea class="viewer-edit" aria-label="Edit note text" hidden></textarea>
+      <div class="actions viewer-actions"><button class="viewer-close" type="button">Close</button><button class="edit-note" type="button">Edit note</button><button class="delete-note" type="button">Delete note</button></div>
+      <div class="actions edit-actions" hidden><button class="cancel-edit" type="button">Cancel</button><button class="save-edit save" type="button">Save edit</button></div>
       <p class="viewer-status status" role="status"></p>
     </section>
     <div class="dock" aria-label="Live annotation controls">
@@ -71,6 +74,7 @@
       <button class="draw" type="button" aria-pressed="false">Draw</button>
       <button class="visibility" type="button" aria-pressed="true" aria-label="Show or hide notes">◎</button>
       <span class="count" aria-label="Saved note count">0</span>
+      <button class="clear-page" type="button" disabled>Clear</button>
       <button class="close" type="button" aria-label="Remove annotation layer">×</button>
     </div>`;
 
@@ -82,14 +86,18 @@
   const viewer = root.querySelector('.viewer');
   const viewerMeta = root.querySelector('.viewer-meta');
   const viewerNote = root.querySelector('.viewer-note');
+  const viewerEdit = root.querySelector('.viewer-edit');
+  const viewerActions = root.querySelector('.viewer-actions');
+  const editActions = root.querySelector('.edit-actions');
   const viewerStatus = root.querySelector('.viewer-status');
-  const textArea = root.querySelector('textarea');
+  const textArea = root.querySelector('.editor textarea');
   const status = root.querySelector('.status');
   const toolSelect = root.querySelector('.tool');
   const colourInput = root.querySelector('.colour');
   const drawButton = root.querySelector('.draw');
   const visibilityButton = root.querySelector('.visibility');
   const count = root.querySelector('.count');
+  const clearPageButton = root.querySelector('.clear-page');
   let enabled = false;
   let dragging = false;
   let visible = true;
@@ -154,9 +162,11 @@
   }
   function setEnabled(next) { enabled=next;drawButton.setAttribute('aria-pressed',String(enabled));surface.classList.toggle('drawing',enabled);drawButton.textContent=enabled?'Drawing':'Draw';if(!enabled)dragging=false; }
   function cancelDraft() { draft=null;draftLayer.replaceChildren();vertices.replaceChildren();editor.hidden=true;textArea.value='';status.textContent=''; }
-  function closeViewer() { viewedNoteId=null;viewer.hidden=true;viewerStatus.textContent=''; }
-  function showViewer(noteId) { const note=notes.find(item=>item.id===noteId);if(!note)return;cancelDraft();setEnabled(false);viewedNoteId=note.id;viewerMeta.textContent=`Note ${note.number} · ${tools[note.selection.type]||note.selection.type}`;viewerNote.textContent=note.note;viewerStatus.textContent='';viewer.hidden=false; }
-  async function loadNotes() { const response=await fetch(`${api}/api/notes?url=${encodeURIComponent(pageUrl())}`);if(!response.ok)throw new Error(`load_failed_${response.status}`);notes=(await response.json()).notes;count.textContent=String(notes.length);render(); }
+  function updateCount() { count.textContent=String(notes.length);clearPageButton.disabled=notes.length===0; }
+  function setViewerEditing(editing) { viewerNote.hidden=editing;viewerEdit.hidden=!editing;viewerActions.hidden=editing;editActions.hidden=!editing;if(editing)queueMicrotask(()=>viewerEdit.focus()); }
+  function closeViewer() { viewedNoteId=null;viewer.hidden=true;viewerStatus.textContent='';setViewerEditing(false); }
+  function showViewer(noteId) { const note=notes.find(item=>item.id===noteId);if(!note)return;cancelDraft();setEnabled(false);viewedNoteId=note.id;viewerMeta.textContent=`Note ${note.number} · ${tools[note.selection.type]||note.selection.type}${note.updatedAt?' · Edited':''}`;viewerNote.textContent=note.note;viewerEdit.value=note.note;viewerStatus.textContent='';setViewerEditing(false);viewer.hidden=false; }
+  async function loadNotes() { const response=await fetch(`${api}/api/notes?url=${encodeURIComponent(pageUrl())}`);if(!response.ok)throw new Error(`load_failed_${response.status}`);notes=(await response.json()).notes;updateCount();render(); }
   function finishDraft() { if(!draft)return;const minimum=draft.type==='polygon'?3:2;if(draft.points.length<minimum){status.textContent=`Place at least ${minimum} points.`;return;}draft.hover=null;draft.selectionBounds=boxFor(draft.points);if(draft.selectionBounds.width<5&&draft.selectionBounds.height<5){cancelDraft();return;}draft.elements=elementsWithin(draft.selectionBounds);setEnabled(false);editor.hidden=false;queueMicrotask(()=>textArea.focus()); }
 
   surface.addEventListener('pointerdown',(event)=>{
@@ -171,10 +181,14 @@
   });
   surface.addEventListener('pointermove',(event)=>{if(!enabled||!draft)return;const point=eventPoint(event);if(draft.type==='polygon')draft.hover=point;else if(dragging)draft.points[1]=point;renderDraft();});
   surface.addEventListener('pointerup',(event)=>{if(!dragging||!draft||draft.type==='polygon')return;dragging=false;surface.releasePointerCapture(event.pointerId);if(distance(draft.points[0],draft.points[1])<6){cancelDraft();return;}finishDraft();event.preventDefault();});
-  root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:{type:draft.type,color:draft.color,points:draft.points,bounds:draft.selectionBounds},elements:draft.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);count.textContent=String(notes.length);cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
+  root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:{type:draft.type,color:draft.color,points:draft.points,bounds:draft.selectionBounds},elements:draft.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);updateCount();cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
   root.querySelector('.cancel').addEventListener('click',cancelDraft);
   root.querySelector('.viewer-close').addEventListener('click',closeViewer);
-  root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Permanently delete note ${note.number}?`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);count.textContent=String(notes.length);closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
+  root.querySelector('.edit-note').addEventListener('click',()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;viewerEdit.value=note.note;viewerStatus.textContent='';setViewerEditing(true);});
+  root.querySelector('.cancel-edit').addEventListener('click',()=>{const note=notes.find(item=>item.id===viewedNoteId);if(note)viewerEdit.value=note.note;viewerStatus.textContent='';setViewerEditing(false);});
+  root.querySelector('.save-edit').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note||!viewerEdit.value.trim()){viewerStatus.textContent='Write a note before saving.';return;}viewerStatus.textContent='Saving…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:viewerEdit.value})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`edit_failed_${response.status}`);notes=notes.map(item=>item.id===note.id?result.note:item);viewerNote.textContent=result.note.note;viewerMeta.textContent=`Note ${result.note.number} · ${tools[result.note.selection.type]||result.note.selection.type} · Edited`;viewerStatus.textContent='';setViewerEditing(false);}catch(error){viewerStatus.textContent=`Could not edit: ${error.message}`;}});
+  root.querySelector('.delete-note').addEventListener('click',async()=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!window.confirm(`Permanently delete note ${note.number}?`))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);updateCount();closeViewer();render();}catch(error){viewerStatus.textContent=`Could not delete: ${error.message}`;}});
+  clearPageButton.addEventListener('click',async()=>{if(notes.length===0)return;const total=notes.length;if(!window.confirm(`Permanently clear ${total} note${total===1?'':'s'} from this page?`))return;clearPageButton.disabled=true;try{const response=await fetch(`${api}/api/notes?url=${encodeURIComponent(pageUrl())}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`clear_failed_${response.status}`);notes=[];closeViewer();cancelDraft();updateCount();render();}catch(error){clearPageButton.disabled=false;window.alert(`Could not clear page notes: ${error.message}`);}});
   root.addEventListener('pointerdown',(event)=>{if(event.target.closest?.('[data-note-id]'))event.stopPropagation();});
   root.addEventListener('click',(event)=>{const annotation=event.target.closest?.('[data-note-id]');if(annotation){event.preventDefault();event.stopPropagation();showViewer(annotation.dataset.noteId);}});
   root.addEventListener('keydown',(event)=>{const marker=event.target.closest?.('.marker');if(marker&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showViewer(marker.dataset.noteId);}});

@@ -47,7 +47,9 @@ write into the annotated website repository.
 - Per-annotation colour
 - Show or hide annotations
 - Click a numbered marker to inspect its note
+- Edit note text while preserving annotation geometry and context
 - Confirmed permanent note deletion
+- Confirmed page-scoped note clearing
 - Responsive note editor and control bar
 
 ## Deliberate limitations

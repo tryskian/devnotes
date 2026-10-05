@@ -48,6 +48,10 @@ preserves the directory without publishing private note content.
   nearby DOM evidence.
 - Clicking a numbered marker opens its note. Deleting from that inspector
   permanently removes the confirmed note from the local ledger.
+- Note text can be edited without replacing its shape, colour, browser context
+  or creation identity.
+- Clear page notes permanently removes only the notes attached to the current
+  page URL after confirming the exact count.
 - Notes remain private and local.
 
 ## Beta 1 limitations

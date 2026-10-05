@@ -17,7 +17,7 @@ await mkdir(dataDirectory, { recursive: true });
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Cache-Control': 'no-store',
 };
@@ -179,7 +179,43 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === 'DELETE' && url.pathname === '/api/notes') {
+      const pageUrl = url.searchParams.get('url');
+      if (!pageUrl) {
+        json(response, 422, { ok: false, error: 'page_url_required' });
+        return;
+      }
+      const notes = await readNotes();
+      const kept = notes.filter((note) => note.url !== pageUrl);
+      const deletedCount = notes.length - kept.length;
+      await writeNotes(kept);
+      json(response, 200, { ok: true, deletedCount, pageUrl, permanent: true });
+      return;
+    }
+
     const noteMatch = url.pathname.match(/^\/api\/notes\/([^/]+)$/);
+    if (request.method === 'PATCH' && noteMatch) {
+      const input = await readBody(request);
+      if (typeof input?.note !== 'string' || input.note.trim().length === 0 || input.note.length > 20_000) {
+        json(response, 422, { ok: false, error: 'invalid_note_text' });
+        return;
+      }
+      const notes = await readNotes();
+      const index = notes.findIndex((note) => note.id === decodeURIComponent(noteMatch[1]));
+      if (index === -1) {
+        json(response, 404, { ok: false, error: 'note_not_found' });
+        return;
+      }
+      notes[index] = {
+        ...notes[index],
+        note: input.note.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+      await writeNotes(notes);
+      json(response, 200, { ok: true, note: notes[index] });
+      return;
+    }
+
     if (request.method === 'DELETE' && noteMatch) {
       const notes = await readNotes();
       const index = notes.findIndex((note) => note.id === decodeURIComponent(noteMatch[1]));

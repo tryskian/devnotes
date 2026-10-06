@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,8 @@ const notesPath = join(dataDirectory, 'notes.json');
 const preferencesPath = join(dataDirectory, 'preferences.json');
 const notebookPath = join(dataDirectory, 'notebook.json');
 const snapshotsPath = join(dataDirectory, 'snapshots.json');
+const thumbnailsPath = join(dataDirectory, 'thumbnails.json');
+const thumbnailCapturePath = join(root, 'scripts', 'capture-thumbnails.mjs');
 const port = Number.parseInt(process.env.ANNOTATION_PORT || '4347', 10);
 const host = '127.0.0.1';
 
@@ -110,6 +113,30 @@ async function writeSnapshots(snapshots) {
   await rename(temporaryPath, snapshotsPath);
 }
 
+async function readThumbnails() {
+  try {
+    const value = JSON.parse(await readFile(thumbnailsPath, 'utf8'));
+    return Array.isArray(value) ? value : [];
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeThumbnails(thumbnails) {
+  const temporaryPath = `${thumbnailsPath}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(thumbnails, null, 2)}\n`, 'utf8');
+  await rename(temporaryPath, thumbnailsPath);
+}
+
+async function removeOrphanedThumbnails(notes) {
+  const noteIds = new Set(notes.map((note) => note.id));
+  const thumbnails = await readThumbnails();
+  const kept = thumbnails.filter((thumbnail) => noteIds.has(thumbnail.noteId));
+  if (kept.length !== thumbnails.length) await writeThumbnails(kept);
+  return kept;
+}
+
 function pageCount(notes) {
   return new Set(notes.map((note) => note.url).filter(Boolean)).size;
 }
@@ -141,6 +168,7 @@ async function saveWorkingMutation(notes, notebook) {
 async function createSnapshot({ label = '', reason = 'manual' } = {}) {
   const notes = await readNotes();
   const preferences = await readPreferences();
+  const thumbnails = await readThumbnails();
   const notebook = await readNotebook(notes);
   const snapshots = await readSnapshots();
   const snapshot = {
@@ -154,6 +182,7 @@ async function createSnapshot({ label = '', reason = 'manual' } = {}) {
     pageCount: pageCount(notes),
     notes: structuredClone(notes),
     preferences: structuredClone(preferences),
+    thumbnails: structuredClone(thumbnails),
   };
   snapshots.push(snapshot);
   await writeSnapshots(snapshots);
@@ -174,27 +203,77 @@ async function readBody(request) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 1_000_000) throw new Error('body_too_large');
+    if (size > 12_000_000) throw new Error('body_too_large');
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
-function validNote(input) {
-  const type = input?.selection?.type;
+function validThumbnail(input) {
+  return input
+    && typeof input.noteId === 'string'
+    && Number.isInteger(input.noteNumber)
+    && typeof input.url === 'string'
+    && input.url.length <= 4_096
+    && typeof input.dataUrl === 'string'
+    && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(input.dataUrl)
+    && input.dataUrl.length <= 10_000_000
+    && Number.isInteger(input.width)
+    && input.width > 0
+    && Number.isInteger(input.height)
+    && input.height > 0;
+}
+
+let thumbnailCapture = null;
+function refreshThumbnails() {
+  if (thumbnailCapture) return thumbnailCapture;
+  thumbnailCapture = new Promise((resolveCapture, rejectCapture) => {
+    const child = spawn(process.execPath, [thumbnailCapturePath], {
+      cwd: root,
+      env: { ...process.env, DEVNOTES_ORIGIN: `http://${host}:${port}` },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', rejectCapture);
+    child.on('close', (code) => {
+      if (code === 0) resolveCapture(stdout.trim());
+      else rejectCapture(new Error(stderr.trim() || stdout.trim() || `thumbnail_capture_failed_${code}`));
+    });
+  }).finally(() => { thumbnailCapture = null; });
+  return thumbnailCapture;
+}
+
+function validSelection(selection) {
+  const type = selection?.type;
   const minimumPoints = type === 'polygon' || type === 'lasso' ? 3 : 2;
   const allowedTypes = ['polygon', 'lasso', 'rectangle', 'ellipse', 'line', 'arrow', 'double-arrow', 'highlight', 'text'];
+  return selection
+    && Array.isArray(selection.points)
+    && allowedTypes.includes(type)
+    && selection.points.length >= minimumPoints
+    && /^#[0-9a-f]{6}$/i.test(selection.color || '#111111')
+    && (type !== 'text' || (typeof selection.quote === 'string' && selection.quote.length > 0 && Array.isArray(selection.rects)));
+}
+
+function selectionsFromInput(input) {
+  if (Array.isArray(input?.selections) && input.selections.length) return input.selections;
+  return input?.selection ? [input.selection] : [];
+}
+
+function validNote(input) {
+  const selections = selectionsFromInput(input);
   return input
     && typeof input.url === 'string'
     && input.url.length <= 4_096
     && typeof input.note === 'string'
     && input.note.trim().length > 0
     && input.note.length <= 20_000
-    && Array.isArray(input.selection?.points)
-    && allowedTypes.includes(type)
-    && input.selection.points.length >= minimumPoints
-    && /^#[0-9a-f]{6}$/i.test(input.selection?.color || '#111111')
-    && (type !== 'text' || (typeof input.selection?.quote === 'string' && input.selection.quote.length > 0 && Array.isArray(input.selection?.rects)));
+    && selections.length > 0
+    && selections.length <= 32
+    && selections.every(validSelection);
 }
 
 const bookmarklet = "javascript:(()=>{const old=document.getElementById('devnotes-loader')||document.getElementById('live-interface-annotation-loader');if(old)old.remove();const s=document.createElement('script');s.id='devnotes-loader';s.src='http://127.0.0.1:4347/client.js';document.documentElement.append(s)})()";
@@ -214,7 +293,7 @@ function loaderPage() {
     p,li,label,input{font-size:clamp(.85rem,1.3vw,1rem);line-height:1.55}.lede{max-width:64ch}.notebook{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.72fr);gap:clamp(2rem,6vw,5rem);margin-top:clamp(3rem,8vw,7rem)}
     .surface{border-top:1px solid;padding-top:1rem}.surface-heading{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}.working-summary{margin:2rem 0;color:#555}.snapshot-form{display:grid;grid-template-columns:1fr auto;gap:.65rem;margin-top:1.25rem}.snapshot-form input{min-width:0;border:0;border-bottom:1px solid;padding:.7rem 0;background:transparent}.snapshot-form button{border:0;border-bottom:1px solid;padding:.7rem .1rem}
     .snapshot-list{display:grid;gap:0;margin:1.2rem 0 0;padding:0;list-style:none}.snapshot-item{display:grid;grid-template-columns:2.5rem 1fr auto;gap:.8rem;align-items:start;padding:.9rem 0;border-top:1px solid #ddd}.snapshot-item:last-child{border-bottom:1px solid #ddd}.snapshot-number,.snapshot-meta{color:#666;font-size:.72rem}.snapshot-label{display:block;margin-bottom:.25rem}.snapshot-item button{border:0;padding:.15rem 0;text-decoration:underline;text-underline-offset:3px}.empty{color:#777;font-size:.8rem}
-    .actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}a,button{border:1px solid #050505;border-radius:0;padding:.8rem 1rem;background:#fefefe;color:#050505;font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}a:hover,button:hover{background:#050505;color:#fefefe}button:disabled{opacity:.4;cursor:not-allowed}code{font:inherit;background:#eee;padding:.1em .25em}.status{min-height:1.5em;color:#555;font-size:.75rem}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}footer{padding-top:1rem;border-top:1px solid;font-size:.75rem;color:#555}
+    .thumbnail-surface{grid-column:1/-1}.thumbnail-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1px;margin-top:1.2rem;background:#050505;border:1px solid #050505}.thumbnail-card{min-width:0;background:#fefefe}.thumbnail-image{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#eee;border-bottom:1px solid #050505}.thumbnail-copy{display:grid;grid-template-columns:auto 1fr auto;gap:.7rem;padding:.75rem}.thumbnail-number,.thumbnail-state{color:#666;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.thumbnail-note{min-width:0;margin:0;font-size:.78rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}a,button{border:1px solid #050505;border-radius:0;padding:.8rem 1rem;background:#fefefe;color:#050505;font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}a:hover,button:hover{background:#050505;color:#fefefe}button:disabled{opacity:.4;cursor:not-allowed}code{font:inherit;background:#eee;padding:.1em .25em}.status{min-height:1.5em;color:#555;font-size:.75rem}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}footer{padding-top:1rem;border-top:1px solid;font-size:.75rem;color:#555}
     @media(max-width:760px){.notebook{grid-template-columns:1fr}.snapshot-form{grid-template-columns:1fr}.snapshot-form button{justify-self:start}}
   </style>
 </head>
@@ -238,6 +317,11 @@ function loaderPage() {
         <div class="surface-heading"><h2 id="snapshots-title">Snapshots</h2><span id="snapshot-count" class="eyebrow">0</span></div>
         <ol id="snapshot-list" class="snapshot-list"></ol>
       </section>
+      <section class="surface thumbnail-surface" aria-labelledby="thumbnails-title">
+        <div class="surface-heading"><h2 id="thumbnails-title">Running thumbnails</h2><button id="refresh-thumbnails" type="button">Refresh captures</button></div>
+        <p id="thumbnail-status" class="status" role="status"></p>
+        <div id="thumbnail-list" class="thumbnail-list"></div>
+      </section>
     </div>
     <div class="actions">
       <a href="${bookmarklet}">Load DevNotes</a>
@@ -251,16 +335,19 @@ function loaderPage() {
     const status=document.querySelector('#snapshot-status');
     const form=document.querySelector('#snapshot-form');
     const label=document.querySelector('#snapshot-label');
+    const thumbnailList=document.querySelector('#thumbnail-list');
+    const thumbnailStatus=document.querySelector('#thumbnail-status');
+    const thumbnailButton=document.querySelector('#refresh-thumbnails');
     function when(value){if(!value)return'Not changed yet';return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));}
     function counted(value,singular){return value+' '+singular+(value===1?'':'s');}
     async function request(path,options){const response=await fetch(path,options);const result=await response.json();if(!response.ok||result.ok===false)throw new Error(result.error||('Request failed '+response.status));return result;}
     async function refresh(){
-      const [working,snapshots]=await Promise.all([request('/api/notebook'),request('/api/snapshots')]);
+      const [working,snapshots,thumbnailResult]=await Promise.all([request('/api/notebook'),request('/api/snapshots'),request('/api/thumbnails')]);
       document.querySelector('#working-status').textContent=counted(working.notebook.noteCount,'note')+' · '+counted(working.notebook.pageCount,'page');
       document.querySelector('#working-summary').textContent='Revision '+working.notebook.revision+' · '+counted(working.notebook.noteCount,'note')+' across '+counted(working.notebook.pageCount,'page')+' · '+when(working.notebook.updatedAt);
       document.querySelector('#snapshot-count').textContent=String(snapshots.snapshots.length);
       list.replaceChildren();
-      if(!snapshots.snapshots.length){const empty=document.createElement('li');empty.className='empty';empty.textContent='No snapshots yet.';list.append(empty);return;}
+      if(!snapshots.snapshots.length){const empty=document.createElement('li');empty.className='empty';empty.textContent='No snapshots yet.';list.append(empty);}
       for(const snapshot of snapshots.snapshots.slice().reverse()){
         const item=document.createElement('li');item.className='snapshot-item';
         const number=document.createElement('span');number.className='snapshot-number';number.textContent=String(snapshot.number).padStart(2,'0');
@@ -268,8 +355,20 @@ function loaderPage() {
         const restore=document.createElement('button');restore.type='button';restore.textContent='Restore';restore.addEventListener('click',async()=>{if(!confirm('Restore snapshot '+snapshot.number+' as the new working notebook? The current state will be snapshotted first.'))return;status.textContent='Restoring…';try{await request('/api/snapshots/'+encodeURIComponent(snapshot.id)+'/restore',{method:'POST'});status.textContent='Restored as new working notebook.';await refresh();}catch(error){status.textContent=error.message;}});
         item.append(number,body,restore);list.append(item);
       }
+      thumbnailList.replaceChildren();
+      if(!thumbnailResult.thumbnails.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='No captures yet. Refresh while the annotated pages are available.';thumbnailList.append(empty);}
+      for(const thumbnail of thumbnailResult.thumbnails.slice().sort((a,b)=>a.noteNumber-b.noteNumber)){
+        const card=document.createElement('article');card.className='thumbnail-card';
+        const image=document.createElement('img');image.className='thumbnail-image';image.src=thumbnail.dataUrl;image.alt='Visual receipt for note '+thumbnail.noteNumber;
+        const copy=document.createElement('div');copy.className='thumbnail-copy';
+        const number=document.createElement('span');number.className='thumbnail-number';number.textContent=String(thumbnail.noteNumber).padStart(2,'0');
+        const note=document.createElement('p');note.className='thumbnail-note';note.textContent=thumbnail.note;
+        const state=document.createElement('span');state.className='thumbnail-state';state.textContent=thumbnail.sourceRevision===working.notebook.revision?'Current':'Earlier';
+        copy.append(number,note,state);card.append(image,copy);thumbnailList.append(card);
+      }
     }
     form.addEventListener('submit',async(event)=>{event.preventDefault();status.textContent='Saving snapshot…';try{await request('/api/snapshots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label.value})});label.value='';status.textContent='Snapshot saved.';await refresh();}catch(error){status.textContent=error.message;}});
+    thumbnailButton.addEventListener('click',async()=>{thumbnailButton.disabled=true;thumbnailStatus.textContent='Capturing each note…';try{const result=await request('/api/thumbnails/refresh',{method:'POST'});thumbnailStatus.textContent=result.output||'Thumbnails refreshed.';await refresh();}catch(error){thumbnailStatus.textContent=error.message;}finally{thumbnailButton.disabled=false;}});
     document.querySelector('#copy').addEventListener('click',async(event)=>{await navigator.clipboard.writeText(${JSON.stringify(bookmarklet)});event.currentTarget.textContent='Copied';});
     refresh().catch(error=>{status.textContent=error.message;});
   </script>
@@ -349,6 +448,55 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/thumbnails') {
+      const thumbnails = await readThumbnails();
+      json(response, 200, { thumbnails });
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/thumbnails') {
+      const input = await readBody(request);
+      if (!validThumbnail(input)) {
+        json(response, 422, { ok: false, error: 'invalid_thumbnail' });
+        return;
+      }
+      const notes = await readNotes();
+      const note = notes.find((item) => item.id === input.noteId);
+      if (!note) {
+        json(response, 404, { ok: false, error: 'note_not_found' });
+        return;
+      }
+      const thumbnails = await readThumbnails();
+      const notebook = await readNotebook(notes);
+      const thumbnail = {
+        id: thumbnails.find((item) => item.noteId === note.id)?.id || randomUUID(),
+        noteId: note.id,
+        noteNumber: note.number,
+        note: note.note,
+        url: note.url,
+        title: note.title || '',
+        selectionCount: selectionsFromInput(note).length,
+        capturedAt: new Date().toISOString(),
+        sourceRevision: notebook.revision,
+        viewport: input.viewport || null,
+        width: input.width,
+        height: input.height,
+        dataUrl: input.dataUrl,
+      };
+      const index = thumbnails.findIndex((item) => item.noteId === note.id);
+      if (index === -1) thumbnails.push(thumbnail);
+      else thumbnails[index] = thumbnail;
+      await writeThumbnails(thumbnails);
+      json(response, 200, { ok: true, thumbnail });
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/thumbnails/refresh') {
+      const output = await refreshThumbnails();
+      json(response, 200, { ok: true, output, thumbnails: await readThumbnails() });
+      return;
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/snapshots') {
       const input = await readBody(request);
       const snapshot = await createSnapshot({ label: input?.label, reason: 'manual' });
@@ -381,6 +529,7 @@ const server = createServer(async (request, response) => {
       const currentNotebook = await readNotebook(currentNotes);
       const restoredNotes = structuredClone(snapshot.notes || []);
       await writePreferences(structuredClone(snapshot.preferences || { color: '#111111', tool: 'polygon' }));
+      await writeThumbnails(structuredClone(snapshot.thumbnails || []));
       const notebook = await saveWorkingMutation(restoredNotes, {
         ...currentNotebook,
         nextNoteNumber: Math.max(0, ...restoredNotes.map((note) => Number(note.number) || 0)) + 1,
@@ -412,6 +561,7 @@ const server = createServer(async (request, response) => {
 
       const notes = await readNotes();
       const notebook = await readNotebook(notes);
+      const selections = structuredClone(selectionsFromInput(input));
       const note = {
         id: randomUUID(),
         number: notebook.nextNoteNumber,
@@ -420,6 +570,8 @@ const server = createServer(async (request, response) => {
         replies: [],
         ...input,
         note: input.note.trim(),
+        selection: selections[0],
+        selections,
       };
       notes.push(note);
       const nextNotebook = await saveWorkingMutation(notes, {
@@ -440,6 +592,7 @@ const server = createServer(async (request, response) => {
       const kept = notes.filter((note) => note.url !== pageUrl);
       const deletedCount = notes.length - kept.length;
       const notebook = await saveWorkingMutation(kept, await readNotebook(notes));
+      await removeOrphanedThumbnails(kept);
       json(response, 200, { ok: true, deletedCount, pageUrl, permanent: true, revision: notebook.revision });
       return;
     }
@@ -479,8 +632,12 @@ const server = createServer(async (request, response) => {
     const noteMatch = url.pathname.match(/^\/api\/notes\/([^/]+)$/);
     if (request.method === 'PATCH' && noteMatch) {
       const input = await readBody(request);
-      if (typeof input?.note !== 'string' || input.note.trim().length === 0 || input.note.length > 20_000) {
-        json(response, 422, { ok: false, error: 'invalid_note_text' });
+      const hasText = typeof input?.note === 'string';
+      const hasSelections = Array.isArray(input?.selections);
+      if ((!hasText && !hasSelections)
+        || (hasText && (input.note.trim().length === 0 || input.note.length > 20_000))
+        || (hasSelections && (input.selections.length === 0 || input.selections.length > 32 || !input.selections.every(validSelection)))) {
+        json(response, 422, { ok: false, error: 'invalid_note_update' });
         return;
       }
       const notes = await readNotes();
@@ -489,9 +646,12 @@ const server = createServer(async (request, response) => {
         json(response, 404, { ok: false, error: 'note_not_found' });
         return;
       }
+      const selections = hasSelections ? structuredClone(input.selections) : selectionsFromInput(notes[index]);
       notes[index] = {
         ...notes[index],
-        note: input.note.trim(),
+        note: hasText ? input.note.trim() : notes[index].note,
+        selection: selections[0],
+        selections,
         updatedAt: new Date().toISOString(),
       };
       const notebook = await saveWorkingMutation(notes, await readNotebook(notes));
@@ -508,6 +668,7 @@ const server = createServer(async (request, response) => {
       }
       const [note] = notes.splice(index, 1);
       const notebook = await saveWorkingMutation(notes, await readNotebook(notes));
+      await removeOrphanedThumbnails(notes);
       json(response, 200, { ok: true, note, permanent: true, revision: notebook.revision });
       return;
     }

@@ -43,6 +43,32 @@ DevNotes retains its native selected quotation, geometry type, colours, live
 text ranges, DOM anchors, draggable and resizable panels, responsive toolbar,
 per-page clearing and exact browser context.
 
+## Grouped and responsive selections
+
+- A note can hold up to 32 independent selections.
+- Add selection temporarily returns to the live page, then reopens the same
+  note with the new selection still unsaved until Keep.
+- Remove selection cannot remove the final selection from a note.
+- Geometry tools with the same two-point shape can be changed in place.
+  Text and polygon selections keep their structurally compatible tool.
+- Every geometry point is anchored independently to the smallest nearby DOM
+  element with matching text. An arrow can therefore keep one endpoint near
+  navigation while its other endpoint follows a headline through reflow.
+- Legacy single-selection notes remain readable and migrate only when kept.
+
+## Running thumbnails
+
+- The DevNotes home can refresh a visual receipt for every note in the working
+  notebook.
+- A private Chromium worker opens each recorded URL, isolates one note and
+  captures the live viewport without altering the target repository.
+- Each receipt records the note number, note ID, URL, capture time, viewport,
+  selection count and working revision.
+- Receipts are derived evidence. A receipt from an earlier working revision is
+  marked Earlier until refreshed.
+- Named snapshots include the thumbnail ledger, and restore recovers the visual
+  receipts alongside notes and preferences.
+
 ## Private data boundary
 
 All working and snapshot state remains under `.data/` and is excluded from Git.
@@ -54,4 +80,5 @@ the migrated files.
 - One working notebook in Beta 2; a multi-notebook switcher is future work.
 - Snapshots are local and immutable, with no diff or merge surface yet.
 - Replies can be created but not edited or individually deleted yet.
-- No browser extension, screenshot capture, source maps or formal MCP server.
+- No browser extension, source maps or formal MCP server.
+- Capture refresh requires its target pages to be running and available.

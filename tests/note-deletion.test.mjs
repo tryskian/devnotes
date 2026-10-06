@@ -91,6 +91,27 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   const pageB = 'http://127.0.0.1:4331/about/';
   const created = await createNote(pageA, 'Temporary deletion test');
 
+  const firstSelection = created.selection;
+  const secondSelection = {
+    type: 'arrow',
+    color: '#02c6f7',
+    points: [{ x: 30, y: 30 }, { x: 70, y: 10 }],
+    bounds: { left: 30, top: 10, width: 40, height: 20 },
+    elements: [],
+    pointAnchors: [null, null],
+  };
+  const groupedResponse = await fetch(`${origin}/api/notes/${created.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ selections: [firstSelection, secondSelection] }),
+  });
+  assert.equal(groupedResponse.status, 200);
+  const grouped = (await groupedResponse.json()).note;
+  assert.equal(grouped.selections.length, 2);
+  assert.deepEqual(grouped.selection, firstSelection);
+  assert.equal(grouped.selections[1].type, 'arrow');
+  assert.equal(grouped.selections[1].color, '#02c6f7');
+
   const editResponse = await fetch(`${origin}/api/notes/${created.id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -101,6 +122,7 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   assert.equal(edited.id, created.id);
   assert.equal(edited.createdAt, created.createdAt);
   assert.deepEqual(edited.selection, created.selection);
+  assert.equal(edited.selections.length, 2);
   assert.equal(edited.note, 'Edited note text');
   assert.equal(typeof edited.updatedAt, 'string');
 
@@ -126,6 +148,25 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   assert.equal(beabReplied.note.replies[1].author, 'beab');
   assert.equal(beabReplied.note.replies[1].text, 'A beab reply');
 
+  const thumbnailResponse = await fetch(`${origin}/api/thumbnails`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      noteId: created.id,
+      noteNumber: created.number,
+      url: pageA,
+      width: 1440,
+      height: 900,
+      viewport: { width: 1440, height: 900, devicePixelRatio: 1 },
+      dataUrl: 'data:image/jpeg;base64,dGVzdA==',
+    }),
+  });
+  assert.equal(thumbnailResponse.status, 200);
+  const thumbnail = (await thumbnailResponse.json()).thumbnail;
+  assert.equal(thumbnail.noteId, created.id);
+  assert.equal(thumbnail.selectionCount, 2);
+  assert.equal(typeof thumbnail.sourceRevision, 'number');
+
   const snapshotResponse = await fetch(`${origin}/api/snapshots`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -147,7 +188,9 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   const immutableSnapshot = await (await fetch(`${origin}/api/snapshots/${snapshot.id}`)).json();
   assert.equal(immutableSnapshot.snapshot.notes[0].note, 'Edited note text');
   assert.equal(immutableSnapshot.snapshot.notes[0].replies.length, 2);
+  assert.equal(immutableSnapshot.snapshot.notes[0].selections.length, 2);
   assert.deepEqual(immutableSnapshot.snapshot.preferences, { color: '#f20707', tool: 'text' });
+  assert.equal(immutableSnapshot.snapshot.thumbnails[0].dataUrl, 'data:image/jpeg;base64,dGVzdA==');
 
   const restoreResponse = await fetch(`${origin}/api/snapshots/${snapshot.id}/restore`, { method: 'POST' });
   assert.equal(restoreResponse.status, 200);
@@ -159,6 +202,9 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   assert.equal(restoredNotes.notes[0].note, 'Edited note text');
   assert.equal(restoredNotes.notes[0].replies[0].text, 'A first reply');
   assert.equal(restoredNotes.notes[0].replies[1].text, 'A beab reply');
+  assert.equal(restoredNotes.notes[0].selections[1].type, 'arrow');
+  const restoredThumbnails = await (await fetch(`${origin}/api/thumbnails`)).json();
+  assert.equal(restoredThumbnails.thumbnails[0].noteId, created.id);
 
   const snapshotsAfterRestore = await (await fetch(`${origin}/api/snapshots`)).json();
   assert.equal(snapshotsAfterRestore.snapshots.length, 2);
@@ -176,6 +222,8 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
 
   const visible = await (await fetch(`${origin}/api/notes`)).json();
   assert.deepEqual(visible.notes, []);
+  const thumbnailsAfterDelete = await (await fetch(`${origin}/api/thumbnails`)).json();
+  assert.deepEqual(thumbnailsAfterDelete.thumbnails, []);
 
   const secondDelete = await fetch(`${origin}/api/notes/${created.id}`, { method: 'DELETE' });
   assert.equal(secondDelete.status, 404);

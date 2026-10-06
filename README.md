@@ -21,6 +21,10 @@ Beta 2 turns the successful annotation loop into a working notebook:
 4. Note cards adopt Sketchiebook's direct textarea, quiet actions, Keep
    control and chronological reply thread while retaining DevNotes geometry,
    live text, colour, DOM evidence, dragging and responsiveness.
+5. One note can hold several selections, and its selection controls can change
+   a compatible tool or colour without replacing the note.
+6. A local Chromium capture worker keeps a thumbnail ledger of the current
+   notebook. Notebook snapshots preserve those visual receipts too.
 
 See [`docs/BETA-2.md`](docs/BETA-2.md) for the current boundary. The original
 annotation-loop record remains in [`docs/BETA-1.md`](docs/BETA-1.md).
@@ -32,11 +36,12 @@ npm run dev
 ```
 
 The loopback service listens on `http://127.0.0.1:4347`. Open that address and
-drag its loader bookmarklet into Chrome's bookmarks bar. The bookmark attaches
+drag its loader bookmarklet into Chromium's bookmarks bar. The bookmark attaches
 the overlay to the current local page without modifying that page's source.
 The overlay records the autosaved working notebook in `.data/notes.json`.
 Notebook revision metadata, preferences and snapshots remain beside it in
 `.data/notebook.json`, `.data/preferences.json` and `.data/snapshots.json`.
+Derived visual receipts live in `.data/thumbnails.json`.
 
 The annotation ledger is intentionally ignored by Git. `.data/.gitkeep`
 preserves the directory without publishing private note content.
@@ -55,14 +60,20 @@ preserves the directory without publishing private note content.
   it immediately; Start resumes the selected tool; Done or Escape returns the
   page to normal interaction.
 - The controls and note editor adapt to narrow viewports and mobile safe areas.
-- Element-backed annotations can follow their captured element across a layout
-  change. Pure whitespace selections remain viewport-specific.
+- Each geometry point keeps its own element anchor, so rectangles, arrows and
+  lines can follow different parts of a changing layout. Pure whitespace
+  endpoints remain viewport-specific.
 - Text annotations re-resolve their exact DOM range first, then fall back to
   quote and surrounding-context matching when the page structure changes.
 - Every note stores its exact shape, URL, title, viewport, scroll position and
   nearby DOM evidence.
 - Clicking a numbered marker opens its note. Deleting from that inspector
   permanently removes the confirmed note from the local ledger.
+- A note can collect up to 32 selections. Add selection returns to the live
+  page, then brings the same note card back for review and one Keep action.
+- Compatible geometry can be changed in place, including line, arrow,
+  double-arrow, rectangle, ellipse and highlight. Every selection keeps an
+  independent colour.
 - Note text can be edited without replacing its shape, colour, browser context
   or creation identity.
 - Saved notes contain a chronological reply thread. Human replies are labelled
@@ -77,20 +88,28 @@ preserves the directory without publishing private note content.
 - The DevNotes home shows the autosaved working notebook, creates named
   immutable snapshots and restores a snapshot only after creating a safety
   copy of the current state.
+- Refresh captures runs a private headless Chromium pass over every note URL,
+  isolates one note at a time and records a current thumbnail. Captures that
+  predate the latest working revision are visibly marked Earlier.
 - Notes remain private and local.
 
 ## Beta 2 limitations
 
-- No browser extension, screenshots, source maps, multi-notebook switcher or
-  formal MCP server yet.
+- No browser extension, source maps, multi-notebook switcher or formal MCP
+  server yet.
 - The bookmarklet works on local HTTP pages while the loopback service is
   running.
 - Element re-anchoring is a bounded first rule, not a complete semantic layout
   mapping system.
+- Thumbnail refresh requires every annotated URL to be available and an actual
+  Chromium executable. Set `DEVNOTES_CHROMIUM_EXECUTABLE` when the local Codex
+  Chromium helper is unavailable.
 
 ## Verify
 
 ```sh
 npm run check
+npm test
+npm run thumbnails
 curl http://127.0.0.1:4347/health
 ```

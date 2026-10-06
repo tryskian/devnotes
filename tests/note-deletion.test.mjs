@@ -45,7 +45,7 @@ async function createNote(url, note) {
   return (await response.json()).note;
 }
 
-test('notes can be edited, deleted, and cleared by page', async (context) => {
+test('working notes, replies, snapshots, restore, deletion, and page clearing', async (context) => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'live-annotation-test-'));
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: new URL('..', import.meta.url),
@@ -103,6 +103,70 @@ test('notes can be edited, deleted, and cleared by page', async (context) => {
   assert.deepEqual(edited.selection, created.selection);
   assert.equal(edited.note, 'Edited note text');
   assert.equal(typeof edited.updatedAt, 'string');
+
+  const replyResponse = await fetch(`${origin}/api/notes/${created.id}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ author: 'human', text: 'A first reply' }),
+  });
+  assert.equal(replyResponse.status, 201);
+  const replied = await replyResponse.json();
+  assert.equal(replied.note.replies.length, 1);
+  assert.equal(replied.note.replies[0].author, 'human');
+  assert.equal(replied.note.replies[0].text, 'A first reply');
+
+  const beabReplyResponse = await fetch(`${origin}/api/notes/${created.id}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ author: 'beab', text: 'A beab reply' }),
+  });
+  assert.equal(beabReplyResponse.status, 201);
+  const beabReplied = await beabReplyResponse.json();
+  assert.equal(beabReplied.note.replies.length, 2);
+  assert.equal(beabReplied.note.replies[1].author, 'beab');
+  assert.equal(beabReplied.note.replies[1].text, 'A beab reply');
+
+  const snapshotResponse = await fetch(`${origin}/api/snapshots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: 'Before another edit' }),
+  });
+  assert.equal(snapshotResponse.status, 201);
+  const snapshot = (await snapshotResponse.json()).snapshot;
+  assert.equal(snapshot.label, 'Before another edit');
+  assert.equal(snapshot.noteCount, 1);
+  assert.equal(snapshot.pageCount, 1);
+
+  const laterEditResponse = await fetch(`${origin}/api/notes/${created.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: 'Changed after snapshot' }),
+  });
+  assert.equal(laterEditResponse.status, 200);
+
+  const immutableSnapshot = await (await fetch(`${origin}/api/snapshots/${snapshot.id}`)).json();
+  assert.equal(immutableSnapshot.snapshot.notes[0].note, 'Edited note text');
+  assert.equal(immutableSnapshot.snapshot.notes[0].replies.length, 2);
+  assert.deepEqual(immutableSnapshot.snapshot.preferences, { color: '#f20707', tool: 'text' });
+
+  const restoreResponse = await fetch(`${origin}/api/snapshots/${snapshot.id}/restore`, { method: 'POST' });
+  assert.equal(restoreResponse.status, 200);
+  const restored = await restoreResponse.json();
+  assert.equal(restored.restored.id, snapshot.id);
+  assert.equal(restored.safetySnapshot.reason, 'before-restore');
+
+  const restoredNotes = await (await fetch(`${origin}/api/notes`)).json();
+  assert.equal(restoredNotes.notes[0].note, 'Edited note text');
+  assert.equal(restoredNotes.notes[0].replies[0].text, 'A first reply');
+  assert.equal(restoredNotes.notes[0].replies[1].text, 'A beab reply');
+
+  const snapshotsAfterRestore = await (await fetch(`${origin}/api/snapshots`)).json();
+  assert.equal(snapshotsAfterRestore.snapshots.length, 2);
+
+  const workingNotebook = await (await fetch(`${origin}/api/notebook`)).json();
+  assert.equal(workingNotebook.notebook.noteCount, 1);
+  assert.equal(workingNotebook.notebook.pageCount, 1);
+  assert.equal(typeof workingNotebook.notebook.revision, 'number');
 
   const deleteResponse = await fetch(`${origin}/api/notes/${created.id}`, { method: 'DELETE' });
   assert.equal(deleteResponse.status, 200);

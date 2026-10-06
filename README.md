@@ -1,13 +1,15 @@
-# Live interface annotation Beta 1
+# DevNotes
 
-A separate, local-only instrument for attaching visual notes to a live web
-page. A person marks the experienced shape; the tool records the browser and
-DOM context needed for a coding agent to inspect the same thing.
+**DevTools, but for noties.**
+
+DevNotes is a local instrument for attaching visual notes to a live web page.
+A person marks the experienced shape; DevNotes records the browser and DOM
+context needed for a coding agent to inspect the same thing.
 
 It does not belong to Sketchiebook and does not modify the annotated page's
 source repository.
 
-## Beta 1
+## DevNotes Beta 1
 
 Beta 1 proves the complete local loop:
 

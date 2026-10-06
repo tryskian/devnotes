@@ -94,7 +94,7 @@ function validNote(input) {
     && (type !== 'text' || (typeof input.selection?.quote === 'string' && input.selection.quote.length > 0 && Array.isArray(input.selection?.rects)));
 }
 
-const bookmarklet = "javascript:(()=>{const old=document.getElementById('live-interface-annotation-loader');if(old)old.remove();const s=document.createElement('script');s.id='live-interface-annotation-loader';s.src='http://127.0.0.1:4347/client.js';document.documentElement.append(s)})()";
+const bookmarklet = "javascript:(()=>{const old=document.getElementById('devnotes-loader')||document.getElementById('live-interface-annotation-loader');if(old)old.remove();const s=document.createElement('script');s.id='devnotes-loader';s.src='http://127.0.0.1:4347/client.js';document.documentElement.append(s)})()";
 
 function loaderPage(noteCount) {
   return `<!doctype html>
@@ -102,7 +102,7 @@ function loaderPage(noteCount) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Live interface annotation prototype</title>
+  <title>DevNotes</title>
   <style>
     :root{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#050505;background:#fefefe}
     *{box-sizing:border-box}body{margin:0;min-height:100svh;padding:clamp(1.25rem,5vw,4rem);display:grid;align-content:space-between;gap:4rem}
@@ -114,22 +114,22 @@ function loaderPage(noteCount) {
   </style>
 </head>
 <body>
-  <header><span class="label">Local annotation tool</span><span>${noteCount} saved note${noteCount === 1 ? '' : 's'}</span></header>
+  <header><span class="label">DevNotes Beta 1</span><span>${noteCount} saved note${noteCount === 1 ? '' : 's'}</span></header>
   <main>
     <h1>Draw on the live page.</h1>
     <p>This page runs the private loopback service. To attach the annotation layer yourself, drag the loader below into Chrome's bookmarks bar once.</p>
     <ol>
-      <li>Drag <strong>Load annotation tool</strong> to the bookmarks bar.</li>
+      <li>Drag <strong>Load DevNotes</strong> to the bookmarks bar.</li>
       <li>Open a local page such as <code>127.0.0.1:4331</code>.</li>
       <li>Click the bookmark whenever you want the annotation layer.</li>
     </ol>
     <div class="actions">
-      <a href="${bookmarklet}">Load annotation tool</a>
+      <a href="${bookmarklet}">Load DevNotes</a>
       <button type="button" id="copy">Copy loader</button>
       <a href="http://127.0.0.1:4331/">Open local portfolio</a>
     </div>
   </main>
-  <footer>Private loopback service · 127.0.0.1:4347</footer>
+  <footer>DevTools, but for noties · private loopback service · 127.0.0.1:4347</footer>
   <script>document.querySelector('#copy').addEventListener('click',async(event)=>{await navigator.clipboard.writeText(${JSON.stringify(bookmarklet)});event.currentTarget.textContent='Copied';});</script>
 </body>
 </html>`;
@@ -146,7 +146,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/health') {
-      json(response, 200, { ok: true, service: 'live-interface-annotation-prototype' });
+      json(response, 200, { ok: true, service: 'devnotes' });
       return;
     }
 
@@ -276,5 +276,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Annotation prototype listening on http://${host}:${port}`);
+  console.log(`DevNotes listening on http://${host}:${port}`);
 });

@@ -1,10 +1,10 @@
-# Beta 1 record
+# DevNotes Beta 1 record
 
 Date: 5 October 2026
 
 ## Purpose
 
-Create a local collaborative annotation layer for live interfaces. The human
+DevNotes is a local collaborative annotation layer for live interfaces. The human
 selects the visual shape they are experiencing and writes the meaning directly
 on it. The coding agent receives that note with enough browser evidence to
 inspect the same target without requiring the human to translate it into

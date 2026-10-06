@@ -1,9 +1,10 @@
 (() => {
-  if (window.__liveInterfaceAnnotationPrototype) {
-    window.__liveInterfaceAnnotationPrototype.show();
-    window.__liveInterfaceAnnotationPrototype.reload();
+  if (window.__devNotes) {
+    window.__devNotes.show();
+    window.__devNotes.reload();
     return;
   }
+  window.__liveInterfaceAnnotationPrototype?.remove?.();
 
   const api = 'http://127.0.0.1:4347';
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -19,7 +20,7 @@
   };
 
   const host = document.createElement('div');
-  host.id = 'live-interface-annotation-prototype';
+  host.id = 'devnotes';
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
   document.documentElement.append(host);
   const root = host.attachShadow({ mode: 'open' });
@@ -196,11 +197,11 @@
   toolSelect.addEventListener('change',()=>{closeViewer();cancelDraft();setEnabled(true);persistPreferences();});
   colourInput.addEventListener('change',persistPreferences);
   visibilityButton.addEventListener('click',()=>{visible=!visible;visibilityButton.setAttribute('aria-pressed',String(visible));render();});
-  root.querySelector('.close').addEventListener('click',()=>{host.remove();document.removeEventListener('pointerup',handlePagePointerUp,true);document.removeEventListener('click',handlePageClick,true);delete window.__liveInterfaceAnnotationPrototype;});
+  root.querySelector('.close').addEventListener('click',()=>{host.remove();document.removeEventListener('pointerup',handlePagePointerUp,true);document.removeEventListener('click',handlePageClick,true);delete window.__devNotes;delete window.__liveInterfaceAnnotationPrototype;});
   addEventListener('scroll',()=>{render();renderDraft();},{passive:true});addEventListener('resize',()=>{render();renderDraft();clampPanel(editor);clampPanel(viewer);});
   addEventListener('keydown',(event)=>{if(event.key==='Escape'){closeViewer();cancelDraft();setEnabled(false);}else if(event.key==='Enter'&&enabled&&draft?.type==='polygon'&&draft.points.length>=3){event.preventDefault();finishDraft();}});
 
   async function initialize() { await loadPreferences();await loadNotes();syncSurfaceMode(); }
-  window.__liveInterfaceAnnotationPrototype={show:()=>{host.style.display='';initialize().catch(()=>{});},hide:()=>{host.style.display='none';},remove:()=>{host.remove();document.removeEventListener('pointerup',handlePagePointerUp,true);document.removeEventListener('click',handlePageClick,true);delete window.__liveInterfaceAnnotationPrototype;},reload:initialize};
+  window.__devNotes={show:()=>{host.style.display='';initialize().catch(()=>{});},hide:()=>{host.style.display='none';},remove:()=>{host.remove();document.removeEventListener('pointerup',handlePagePointerUp,true);document.removeEventListener('click',handlePageClick,true);delete window.__devNotes;delete window.__liveInterfaceAnnotationPrototype;},reload:initialize};
   initialize().catch(error=>{count.textContent='!';count.title=error.message;});
 })();

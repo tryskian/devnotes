@@ -36,7 +36,7 @@ The card follows Sketchiebook's working UX:
 - direct textarea instead of a separate display/edit mode;
 - quiet Delete and primary Keep actions;
 - chronological nested replies inside the same card;
-- reply composer with You and Beab author labels;
+- styled correspondence with You and Notie author labels;
 - note edits must be kept before a reply can be sent.
 
 DevNotes retains its native selected quotation, geometry type, colours, live

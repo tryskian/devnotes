@@ -601,7 +601,7 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && replyMatch) {
       const input = await readBody(request);
       const text = typeof input?.text === 'string' ? input.text.trim() : '';
-      const author = input?.author === 'beab' ? 'beab' : 'human';
+      const author = ['notie', 'beab'].includes(input?.author) ? 'notie' : 'human';
       if (!text || text.length > 20_000) {
         json(response, 422, { ok: false, error: 'invalid_reply' });
         return;

@@ -77,7 +77,8 @@ preserves the directory without publishing private note content.
 - Note text can be edited without replacing its shape, colour, browser context
   or creation identity.
 - Saved notes contain a chronological reply thread. Human replies are labelled
-  You; agent-authored replies can be labelled Beab through the local API.
+  You; agent-authored replies are labelled Notie. Legacy Beab replies remain
+  readable as Notie without rewriting the private notebook.
 - Draft and saved note cards use the Sketchiebook working rhythm: a direct
   textarea, quiet actions, and Keep as the primary control.
 - The new-note editor and saved-note inspector can be dragged by their header so

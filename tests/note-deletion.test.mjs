@@ -137,16 +137,16 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   assert.equal(replied.note.replies[0].author, 'human');
   assert.equal(replied.note.replies[0].text, 'A first reply');
 
-  const beabReplyResponse = await fetch(`${origin}/api/notes/${created.id}/replies`, {
+  const notieReplyResponse = await fetch(`${origin}/api/notes/${created.id}/replies`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ author: 'beab', text: 'A beab reply' }),
+    body: JSON.stringify({ author: 'notie', text: 'A Notie reply' }),
   });
-  assert.equal(beabReplyResponse.status, 201);
-  const beabReplied = await beabReplyResponse.json();
-  assert.equal(beabReplied.note.replies.length, 2);
-  assert.equal(beabReplied.note.replies[1].author, 'beab');
-  assert.equal(beabReplied.note.replies[1].text, 'A beab reply');
+  assert.equal(notieReplyResponse.status, 201);
+  const notieReplied = await notieReplyResponse.json();
+  assert.equal(notieReplied.note.replies.length, 2);
+  assert.equal(notieReplied.note.replies[1].author, 'notie');
+  assert.equal(notieReplied.note.replies[1].text, 'A Notie reply');
 
   const thumbnailResponse = await fetch(`${origin}/api/thumbnails`, {
     method: 'POST',
@@ -201,7 +201,7 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   const restoredNotes = await (await fetch(`${origin}/api/notes`)).json();
   assert.equal(restoredNotes.notes[0].note, 'Edited note text');
   assert.equal(restoredNotes.notes[0].replies[0].text, 'A first reply');
-  assert.equal(restoredNotes.notes[0].replies[1].text, 'A beab reply');
+  assert.equal(restoredNotes.notes[0].replies[1].text, 'A Notie reply');
   assert.equal(restoredNotes.notes[0].selections[1].type, 'arrow');
   const restoredThumbnails = await (await fetch(`${origin}/api/thumbnails`)).json();
   assert.equal(restoredThumbnails.thumbnails[0].noteId, created.id);

@@ -45,7 +45,7 @@ async function createNote(url, note) {
   return (await response.json()).note;
 }
 
-test('working notes, replies, snapshots, restore, deletion, and page clearing', async (context) => {
+test('working notes, replies, snapshots, numbering reset, restore, deletion, and page clearing', async (context) => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'live-annotation-test-'));
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: new URL('..', import.meta.url),
@@ -228,8 +228,10 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
   const secondDelete = await fetch(`${origin}/api/notes/${created.id}`, { method: 'DELETE' });
   assert.equal(secondDelete.status, 404);
 
-  await createNote(pageA, 'Page A note one');
-  await createNote(pageA, 'Page A note two');
+  const pageANoteOne = await createNote(pageA, 'Page A note one');
+  const pageANoteTwo = await createNote(pageA, 'Page A note two');
+  assert.equal(pageANoteOne.number, 2);
+  assert.equal(pageANoteTwo.number, 3);
   const textPayload = notePayload(pageA, 'Page A text note');
   textPayload.selection = {
     type: 'text',
@@ -246,12 +248,55 @@ test('working notes, replies, snapshots, restore, deletion, and page clearing', 
     body: JSON.stringify(textPayload),
   });
   assert.equal(textCreateResponse.status, 201);
+  const pageATextNote = (await textCreateResponse.json()).note;
+  assert.equal(pageATextNote.number, 4);
   const pageBNote = await createNote(pageB, 'Page B note');
+  assert.equal(pageBNote.number, 1);
+
+  const pageAThumbnailResponse = await fetch(`${origin}/api/thumbnails`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      noteId: pageANoteOne.id,
+      noteNumber: pageANoteOne.number,
+      url: pageA,
+      width: 1440,
+      height: 900,
+      dataUrl: 'data:image/jpeg;base64,dGVzdA==',
+    }),
+  });
+  assert.equal(pageAThumbnailResponse.status, 200);
+
+  const resetResponse = await fetch(`${origin}/api/pages/reset-numbering`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: pageA }),
+  });
+  assert.equal(resetResponse.status, 200);
+  const reset = await resetResponse.json();
+  assert.equal(reset.noteCount, 3);
+  assert.equal(reset.nextNoteNumber, 4);
+  assert.equal(reset.snapshot.reason, 'before-numbering-reset');
+
+  const renumberedPageA = await (await fetch(`${origin}/api/notes?url=${encodeURIComponent(pageA)}`)).json();
+  assert.deepEqual(renumberedPageA.notes.map((note) => note.id), [pageANoteOne.id, pageANoteTwo.id, pageATextNote.id]);
+  assert.deepEqual(renumberedPageA.notes.map((note) => note.number), [1, 2, 3]);
+  const thumbnailsAfterReset = await (await fetch(`${origin}/api/thumbnails`)).json();
+  assert.deepEqual(thumbnailsAfterReset.thumbnails, []);
+
+  const postResetNote = await createNote(pageA, 'Page A note after reset');
+  assert.equal(postResetNote.number, 4);
+
+  const notebookWithPages = await (await fetch(`${origin}/api/notebook`)).json();
+  const pageASummary = notebookWithPages.notebook.pages.find((page) => page.url === pageA);
+  const pageBSummary = notebookWithPages.notebook.pages.find((page) => page.url === pageB);
+  assert.equal(pageASummary.nextNoteNumber, 5);
+  assert.equal(pageBSummary.nextNoteNumber, 2);
 
   const clearResponse = await fetch(`${origin}/api/notes?url=${encodeURIComponent(pageA)}`, { method: 'DELETE' });
   assert.equal(clearResponse.status, 200);
   const cleared = await clearResponse.json();
-  assert.equal(cleared.deletedCount, 3);
+  assert.equal(cleared.deletedCount, 4);
   assert.equal(cleared.pageUrl, pageA);
   assert.equal(cleared.permanent, true);
 

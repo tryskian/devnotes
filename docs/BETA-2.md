@@ -11,8 +11,8 @@ DevNotes shell or removing its native browser evidence.
 ## Working notebook
 
 - Notes, replies, edits, deletions and preferences autosave immediately.
-- `notebook.json` records schema version, working revision, note numbering,
-  snapshot numbering and last-change time.
+- `notebook.json` records schema version, working revision, page-scoped note
+  sequences, snapshot numbering and last-change time.
 - Existing Beta 1 notes migrate in place without changing their IDs, geometry,
   colour, URL, DOM evidence or text anchors.
 
@@ -68,6 +68,17 @@ per-page clearing and exact browser context.
   marked Earlier until refreshed.
 - Named snapshots include the thumbnail ledger, and restore recovers the visual
   receipts alongside notes and preferences.
+
+## Notation reset
+
+- Every active page has an independent visible note sequence.
+- The working-notebook dashboard shows each page's note count and next number.
+- Reset numbering creates an immutable `before-numbering-reset` snapshot, then
+  compacts the page's active notes into `01, 02, 03…`.
+- Stable note IDs, selections, replies and other pages remain unchanged.
+- Current thumbnails for that page are discarded because their pixels contain
+  the previous labels. The preserved snapshot retains them, and Refresh
+  captures creates receipts with the new notation.
 
 ## Private data boundary
 

@@ -63,28 +63,44 @@ async function writePreferences(preferences) {
   await rename(temporaryPath, preferencesPath);
 }
 
+function pageSequencesFor(notes, stored = {}) {
+  const derived = {};
+  for (const note of notes) {
+    if (!note?.url) continue;
+    derived[note.url] = Math.max(derived[note.url] || 1, (Number(note.number) || 0) + 1);
+  }
+  for (const [url, number] of Object.entries(stored || {})) {
+    if (typeof url === 'string' && Number.isInteger(number) && number > 0) {
+      derived[url] = Math.max(derived[url] || 1, number);
+    }
+  }
+  return derived;
+}
+
 async function readNotebook(notes = null) {
+  const currentNotes = notes || await readNotes();
   try {
     const value = JSON.parse(await readFile(notebookPath, 'utf8'));
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       revision: Number.isInteger(value?.revision) ? value.revision : 0,
       nextNoteNumber: Number.isInteger(value?.nextNoteNumber) ? value.nextNoteNumber : 1,
+      pageSequences: pageSequencesFor(currentNotes, value?.pageSequences),
       nextSnapshotNumber: Number.isInteger(value?.nextSnapshotNumber) ? value.nextSnapshotNumber : 1,
       updatedAt: typeof value?.updatedAt === 'string' ? value.updatedAt : null,
     };
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
-    const currentNotes = notes || await readNotes();
     const latestTimestamp = currentNotes
       .map((note) => note.updatedAt || note.createdAt)
       .filter(Boolean)
       .sort()
       .at(-1) || null;
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       revision: currentNotes.length ? 1 : 0,
       nextNoteNumber: Math.max(0, ...currentNotes.map((note) => Number(note.number) || 0)) + 1,
+      pageSequences: pageSequencesFor(currentNotes),
       nextSnapshotNumber: 1,
       updatedAt: latestTimestamp,
     };
@@ -141,6 +157,27 @@ function pageCount(notes) {
   return new Set(notes.map((note) => note.url).filter(Boolean)).size;
 }
 
+function pageSummaries(notes, notebook) {
+  const pages = new Map();
+  for (const note of notes) {
+    const page = pages.get(note.url) || {
+      url: note.url,
+      title: note.title || note.url,
+      noteCount: 0,
+      latestAt: null,
+    };
+    page.noteCount += 1;
+    page.title = note.title || page.title;
+    const changedAt = note.updatedAt || note.createdAt || null;
+    if (changedAt && (!page.latestAt || changedAt > page.latestAt)) page.latestAt = changedAt;
+    pages.set(note.url, page);
+  }
+  return [...pages.values()].map((page) => ({
+    ...page,
+    nextNoteNumber: notebook.pageSequences?.[page.url] || 1,
+  }));
+}
+
 function snapshotSummary(snapshot) {
   return {
     id: snapshot.id,
@@ -183,6 +220,11 @@ async function createSnapshot({ label = '', reason = 'manual' } = {}) {
     notes: structuredClone(notes),
     preferences: structuredClone(preferences),
     thumbnails: structuredClone(thumbnails),
+    notebookState: {
+      schemaVersion: notebook.schemaVersion,
+      nextNoteNumber: notebook.nextNoteNumber,
+      pageSequences: structuredClone(notebook.pageSequences || {}),
+    },
   };
   snapshots.push(snapshot);
   await writeSnapshots(snapshots);
@@ -291,7 +333,7 @@ function loaderPage() {
     header,main,footer{width:min(72rem,100%)}header{display:flex;justify-content:space-between;gap:1rem;padding-bottom:1rem;border-bottom:1px solid}
     .label,.eyebrow{text-transform:uppercase;letter-spacing:.08em}h1{max-width:14ch;margin:0 0 1.25rem;font:500 clamp(2.5rem,7vw,5.5rem)/.96 Georgia,serif}h2{margin:0;font-size:1rem;text-transform:uppercase;letter-spacing:.08em}
     p,li,label,input{font-size:clamp(.85rem,1.3vw,1rem);line-height:1.55}.lede{max-width:64ch}.notebook{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.72fr);gap:clamp(2rem,6vw,5rem);margin-top:clamp(3rem,8vw,7rem)}
-    .surface{border-top:1px solid;padding-top:1rem}.surface-heading{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}.working-summary{margin:2rem 0;color:#555}.snapshot-form{display:grid;grid-template-columns:1fr auto;gap:.65rem;margin-top:1.25rem}.snapshot-form input{min-width:0;border:0;border-bottom:1px solid;padding:.7rem 0;background:transparent}.snapshot-form button{border:0;border-bottom:1px solid;padding:.7rem .1rem}
+    .surface{border-top:1px solid;padding-top:1rem}.surface-heading{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}.working-summary{margin:2rem 0 1rem;color:#555}.page-list{margin:0;padding:0;list-style:none;border-bottom:1px solid #ddd}.page-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.8rem 0;border-top:1px solid #ddd}.page-copy{min-width:0}.page-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem}.page-meta{display:block;margin-top:.2rem;color:#777;font-size:.68rem}.page-reset{border:0;padding:.25rem 0;text-decoration:underline;text-underline-offset:3px}.snapshot-form{display:grid;grid-template-columns:1fr auto;gap:.65rem;margin-top:1.25rem}.snapshot-form input{min-width:0;border:0;border-bottom:1px solid;padding:.7rem 0;background:transparent}.snapshot-form button{border:0;border-bottom:1px solid;padding:.7rem .1rem}
     .snapshot-list{display:grid;gap:0;margin:1.2rem 0 0;padding:0;list-style:none}.snapshot-item{display:grid;grid-template-columns:2.5rem 1fr auto;gap:.8rem;align-items:start;padding:.9rem 0;border-top:1px solid #ddd}.snapshot-item:last-child{border-bottom:1px solid #ddd}.snapshot-number,.snapshot-meta{color:#666;font-size:.72rem}.snapshot-label{display:block;margin-bottom:.25rem}.snapshot-item button{border:0;padding:.15rem 0;text-decoration:underline;text-underline-offset:3px}.empty{color:#777;font-size:.8rem}
     .thumbnail-surface{grid-column:1/-1}.thumbnail-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1px;margin-top:1.2rem;background:#050505;border:1px solid #050505}.thumbnail-card{min-width:0;background:#fefefe}.thumbnail-image{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#eee;border-bottom:1px solid #050505}.thumbnail-copy{display:grid;grid-template-columns:auto 1fr auto;gap:.7rem;padding:.75rem}.thumbnail-number,.thumbnail-state{color:#666;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.thumbnail-note{min-width:0;margin:0;font-size:.78rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}a,button{border:1px solid #050505;border-radius:0;padding:.8rem 1rem;background:#fefefe;color:#050505;font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}a:hover,button:hover{background:#050505;color:#fefefe}button:disabled{opacity:.4;cursor:not-allowed}code{font:inherit;background:#eee;padding:.1em .25em}.status{min-height:1.5em;color:#555;font-size:.75rem}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}footer{padding-top:1rem;border-top:1px solid;font-size:.75rem;color:#555}
     @media(max-width:760px){.notebook{grid-template-columns:1fr}.snapshot-form{grid-template-columns:1fr}.snapshot-form button{justify-self:start}}
@@ -306,6 +348,7 @@ function loaderPage() {
       <section class="surface" aria-labelledby="working-title">
         <div class="surface-heading"><h2 id="working-title">Working notebook</h2><span class="eyebrow">Autosaved</span></div>
         <p id="working-summary" class="working-summary">Reading working state…</p>
+        <ol id="page-list" class="page-list"></ol>
         <form id="snapshot-form" class="snapshot-form">
           <label class="visually-hidden" for="snapshot-label">Snapshot name</label>
           <input id="snapshot-label" maxlength="200" placeholder="Snapshot name (optional)">
@@ -335,6 +378,7 @@ function loaderPage() {
     const status=document.querySelector('#snapshot-status');
     const form=document.querySelector('#snapshot-form');
     const label=document.querySelector('#snapshot-label');
+    const pageList=document.querySelector('#page-list');
     const thumbnailList=document.querySelector('#thumbnail-list');
     const thumbnailStatus=document.querySelector('#thumbnail-status');
     const thumbnailButton=document.querySelector('#refresh-thumbnails');
@@ -345,6 +389,14 @@ function loaderPage() {
       const [working,snapshots,thumbnailResult]=await Promise.all([request('/api/notebook'),request('/api/snapshots'),request('/api/thumbnails')]);
       document.querySelector('#working-status').textContent=counted(working.notebook.noteCount,'note')+' · '+counted(working.notebook.pageCount,'page');
       document.querySelector('#working-summary').textContent='Revision '+working.notebook.revision+' · '+counted(working.notebook.noteCount,'note')+' across '+counted(working.notebook.pageCount,'page')+' · '+when(working.notebook.updatedAt);
+      pageList.replaceChildren();
+      if(!working.notebook.pages.length){const empty=document.createElement('li');empty.className='empty';empty.textContent='No active pages.';pageList.append(empty);}
+      for(const page of working.notebook.pages){
+        const item=document.createElement('li');item.className='page-item';
+        const copy=document.createElement('div');copy.className='page-copy';const title=document.createElement('strong');title.className='page-title';title.textContent=page.title;const meta=document.createElement('span');meta.className='page-meta';meta.textContent=counted(page.noteCount,'note')+' · next '+String(page.nextNoteNumber).padStart(2,'0');copy.append(title,meta);
+        const reset=document.createElement('button');reset.type='button';reset.className='page-reset';reset.textContent='Reset numbering';reset.addEventListener('click',async()=>{const finalNumber=String(page.noteCount).padStart(2,'0');if(!confirm('Reset this page to note numbers 01–'+finalNumber+'? DevNotes will snapshot the current notebook first. Notes, selections and replies stay intact; current thumbnails will need a refresh.'))return;reset.disabled=true;status.textContent='Preserving notebook and resetting notation…';try{const result=await request('/api/pages/reset-numbering',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:page.url})});status.textContent='Numbering reset to 01–'+finalNumber+'. Snapshot '+String(result.snapshot.number).padStart(2,'0')+' preserved the earlier notation.';await refresh();}catch(error){status.textContent=error.message;}finally{reset.disabled=false;}});
+        item.append(copy,reset);pageList.append(item);
+      }
       document.querySelector('#snapshot-count').textContent=String(snapshots.snapshots.length);
       list.replaceChildren();
       if(!snapshots.snapshots.length){const empty=document.createElement('li');empty.className='empty';empty.textContent='No snapshots yet.';list.append(empty);}
@@ -437,6 +489,7 @@ const server = createServer(async (request, response) => {
           ...notebook,
           noteCount: notes.length,
           pageCount: pageCount(notes),
+          pages: pageSummaries(notes, notebook),
         },
       });
       return;
@@ -530,9 +583,16 @@ const server = createServer(async (request, response) => {
       const restoredNotes = structuredClone(snapshot.notes || []);
       await writePreferences(structuredClone(snapshot.preferences || { color: '#111111', tool: 'polygon' }));
       await writeThumbnails(structuredClone(snapshot.thumbnails || []));
+      const restoredPageSequences = pageSequencesFor(
+        restoredNotes,
+        snapshot.notebookState?.pageSequences,
+      );
       const notebook = await saveWorkingMutation(restoredNotes, {
         ...currentNotebook,
-        nextNoteNumber: Math.max(0, ...restoredNotes.map((note) => Number(note.number) || 0)) + 1,
+        nextNoteNumber: Number.isInteger(snapshot.notebookState?.nextNoteNumber)
+          ? snapshot.notebookState.nextNoteNumber
+          : Math.max(0, ...restoredNotes.map((note) => Number(note.number) || 0)) + 1,
+        pageSequences: restoredPageSequences,
       });
       json(response, 200, {
         ok: true,
@@ -562,9 +622,10 @@ const server = createServer(async (request, response) => {
       const notes = await readNotes();
       const notebook = await readNotebook(notes);
       const selections = structuredClone(selectionsFromInput(input));
+      const number = notebook.pageSequences?.[input.url] || 1;
       const note = {
         id: randomUUID(),
-        number: notebook.nextNoteNumber,
+        number,
         createdAt: new Date().toISOString(),
         status: 'open',
         replies: [],
@@ -576,9 +637,56 @@ const server = createServer(async (request, response) => {
       notes.push(note);
       const nextNotebook = await saveWorkingMutation(notes, {
         ...notebook,
-        nextNoteNumber: notebook.nextNoteNumber + 1,
+        nextNoteNumber: Math.max(notebook.nextNoteNumber, number + 1),
+        pageSequences: { ...notebook.pageSequences, [input.url]: number + 1 },
       });
       json(response, 201, { ok: true, note, revision: nextNotebook.revision });
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/pages/reset-numbering') {
+      const input = await readBody(request);
+      const pageUrl = typeof input?.url === 'string' ? input.url : '';
+      if (!pageUrl || pageUrl.length > 4_096) {
+        json(response, 422, { ok: false, error: 'page_url_required' });
+        return;
+      }
+      const notes = await readNotes();
+      const pageNotes = notes
+        .filter((note) => note.url === pageUrl)
+        .sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0)
+          || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      if (!pageNotes.length) {
+        json(response, 404, { ok: false, error: 'page_notes_not_found' });
+        return;
+      }
+      const pageTitle = pageNotes.at(-1)?.title || pageUrl;
+      const snapshot = await createSnapshot({
+        label: `Before numbering reset: ${pageTitle}`,
+        reason: 'before-numbering-reset',
+      });
+      const numbers = new Map(pageNotes.map((note, index) => [note.id, index + 1]));
+      const resetAt = new Date().toISOString();
+      const renumbered = notes.map((note) => numbers.has(note.id)
+        ? { ...note, number: numbers.get(note.id), renumberedAt: resetAt }
+        : note);
+      const notebook = await readNotebook(notes);
+      const nextNumber = pageNotes.length + 1;
+      const nextNotebook = await saveWorkingMutation(renumbered, {
+        ...notebook,
+        pageSequences: { ...notebook.pageSequences, [pageUrl]: nextNumber },
+      });
+      const pageIds = new Set(pageNotes.map((note) => note.id));
+      const thumbnails = await readThumbnails();
+      await writeThumbnails(thumbnails.filter((thumbnail) => !pageIds.has(thumbnail.noteId)));
+      json(response, 200, {
+        ok: true,
+        pageUrl,
+        noteCount: pageNotes.length,
+        nextNoteNumber: nextNumber,
+        snapshot: snapshotSummary(snapshot),
+        revision: nextNotebook.revision,
+      });
       return;
     }
 

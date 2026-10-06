@@ -25,6 +25,8 @@ Beta 2 turns the successful annotation loop into a working notebook:
    a compatible tool or colour without replacing the note.
 6. A local Chromium capture worker keeps a thumbnail ledger of the current
    notebook. Notebook snapshots preserve those visual receipts too.
+7. The dashboard can reset one page's visible notation after preserving an
+   automatic snapshot. Stable note IDs and notebook evidence remain intact.
 
 See [`docs/BETA-2.md`](docs/BETA-2.md) for the current boundary. The original
 annotation-loop record remains in [`docs/BETA-1.md`](docs/BETA-1.md).
@@ -89,6 +91,10 @@ preserves the directory without publishing private note content.
 - The DevNotes home shows the autosaved working notebook, creates named
   immutable snapshots and restores a snapshot only after creating a safety
   copy of the current state.
+- Each active page appears in the working-notebook dashboard with its note
+  count and next number. Reset numbering compacts the page to `01, 02, 03…`,
+  snapshots the earlier notation first, and preserves notes, selections and
+  replies. Page numbering is independent, so a second page can begin at `01`.
 - Refresh captures runs a private headless Chromium pass over every note URL,
   isolates one note at a time and records a current thumbnail. Captures that
   predate the latest working revision are visibly marked Earlier.

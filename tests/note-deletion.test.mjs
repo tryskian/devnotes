@@ -64,6 +64,16 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
 
   await waitForServer();
 
+  const dashboardSource = await (await fetch(`${origin}/`)).text();
+  assert.match(dashboardSource, /id="action-notice"/);
+  assert.match(dashboardSource, /confirmActionNotice/);
+  assert.doesNotMatch(dashboardSource, /if\(!confirm\(/);
+
+  const clientSource = await (await fetch(`${origin}/client.js`)).text();
+  assert.match(clientSource, /class="notice"/);
+  assert.match(clientSource, /confirmNotice\(`Delete note/);
+  assert.match(clientSource, /confirmNotice\(`Clear \$\{total\} note/);
+
   const preflightResponse = await fetch(`${origin}/api/notes/test-note`, {
     method: 'OPTIONS',
     headers: {

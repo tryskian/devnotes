@@ -88,6 +88,9 @@ preserves the directory without publishing private note content.
   the panel position.
 - Clear page notes permanently removes only the notes attached to the current
   page URL after confirming the exact count.
+- Delete, Clear, Restore and Reset numbering use the same in-app confirmation
+  notice. Cancel receives focus first, Escape cancels, and success or failure
+  returns through the same quiet status surface instead of browser dialogs.
 - The DevNotes home shows the autosaved working notebook, creates named
   immutable snapshots and restores a snapshot only after creating a safety
   copy of the current state.

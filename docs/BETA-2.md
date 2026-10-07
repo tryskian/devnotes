@@ -43,6 +43,12 @@ DevNotes retains its native selected quotation, geometry type, colours, live
 text ranges, DOM anchors, draggable and resizable panels, responsive toolbar,
 per-page clearing and exact browser context.
 
+Boundary actions share one DevNotes-native confirmation and status notice.
+Delete, Clear, Restore and Reset numbering name the exact scope and consequence;
+Cancel receives initial focus, Escape cancels, and focus returns to the action
+that opened the notice. Success notices dismiss after a short interval while
+errors remain visible.
+
 ## Grouped and responsive selections
 
 - A note can hold up to 32 independent selections.

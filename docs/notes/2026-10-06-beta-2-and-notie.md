@@ -114,6 +114,13 @@ Reset numbering:
 The control was added to the live dashboard but deliberately not activated on
 the five current notes during implementation.
 
+## Action confirmation and status
+
+Delete, Clear, Restore and Reset numbering now use one DevNotes-native notice
+instead of browser `confirm()` and `alert()` interruptions. The notice names the
+exact scope, gives Cancel initial focus, supports Escape, returns focus to the
+trigger and reports success or failure without shifting the working layout.
+
 ## Verified Git chronology
 
 | Commit | Time | Verified change |

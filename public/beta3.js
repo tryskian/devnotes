@@ -123,6 +123,8 @@
   let drag = null;
   let resize = null;
   let noticeTimer = null;
+  let activeTextEdit = null;
+  let savedTextRange = null;
   const textDrafts = new Map();
 
   const textBlockSelector = 'h1,h2,h3,h4,h5,h6,p,a,button,label,summary,figcaption,dt,dd,blockquote,pre,code,li';
@@ -253,6 +255,7 @@
     redoButton.disabled = !editable || historyCursor >= history.length;
     resetButton.disabled = !editable || history.length === 0;
     editCopyButton.disabled = !editable || !selected || !textLayer(selected);
+    editCopyButton.textContent = activeTextEdit?.element === selected ? 'Done text' : 'Edit text';
     parentButton.disabled = !selected || !meaningfulElement(selected.parentElement);
     revertLayerButton.disabled = !editable || !selected || !history.some((operation, index) => index < historyCursor && operation.layerId === selected.dataset.devnotesBeta3Layer);
     for (const control of [fontSizeInput, lineHeightInput, letterSpacingInput, textTransformSelect, textAlignSelect, boldButton, italicButton, underlineButton, strikeButton]) control.disabled = !editable || !selected || !textLayer(selected);
@@ -427,28 +430,68 @@
     updateSelection();
   }
 
-  function startCopyEdit() {
+  function finishTextEdit() {
+    if (!activeTextEdit) return;
+    const { element, before } = activeTextEdit;
+    element.contentEditable = 'false';
+    element.removeAttribute('contenteditable');
+    activeTextEdit = null;
+    savedTextRange = null;
+    commitOperation(element, before, 'edit-copy');
+    updateSelection();
+  }
+
+  function startCopyEdit({ selectAll = true } = {}) {
     if (!selected || !textLayer(selected) || viewMode !== 'experiment') {
       showNotice('Select a text layer to edit its copy.');
       return;
     }
+    if (activeTextEdit?.element === selected) {
+      finishTextEdit();
+      return;
+    }
+    finishTextEdit();
     const element = selected;
-    const before = snapshotState(element);
+    activeTextEdit = { element, before: snapshotState(element) };
+    savedTextRange = null;
     element.contentEditable = 'true';
     element.focus({ preventScroll: true });
-    const range = frameDocument.createRange();
-    range.selectNodeContents(element);
+    if (selectAll) {
+      const range = frameDocument.createRange();
+      range.selectNodeContents(element);
+      const selection = frame.contentWindow.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      savedTextRange = range.cloneRange();
+    }
+    updateControls();
+    showNotice('Text editing active. Select a word or phrase for inline formatting.');
+  }
+
+  function selectedInlineRange() {
+    if (!activeTextEdit || !savedTextRange || savedTextRange.collapsed) return null;
+    const ancestor = savedTextRange.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+      ? savedTextRange.commonAncestorContainer
+      : savedTextRange.commonAncestorContainer.parentElement;
+    return activeTextEdit.element.contains(ancestor) ? savedTextRange : null;
+  }
+
+  function applyInlineCommand(command) {
+    const range = selectedInlineRange();
+    if (!range || !activeTextEdit) return false;
+    const element = activeTextEdit.element;
+    const before = snapshotState(element);
+    element.focus({ preventScroll: true });
     const selection = frame.contentWindow.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
-    const finish = () => {
-      element.contentEditable = 'false';
-      element.removeAttribute('contenteditable');
-      commitOperation(element, before, 'edit-copy');
-      element.removeEventListener('blur', finish);
-      updateSelection();
-    };
-    element.addEventListener('blur', finish);
+    frameDocument.execCommand(command, false);
+    const currentSelection = frame.contentWindow.getSelection();
+    savedTextRange = currentSelection.rangeCount ? currentSelection.getRangeAt(0).cloneRange() : null;
+    commitOperation(element, before, 'format-inline-text');
+    activeTextEdit.before = snapshotState(element);
+    updateSelection();
+    return true;
   }
 
   function applyTextStyle(mutator) {
@@ -457,6 +500,7 @@
     const before = snapshotState(element);
     mutator(element, frame.contentWindow.getComputedStyle(element));
     commitOperation(element, before, 'format-text');
+    if (activeTextEdit?.element === element) activeTextEdit.before = snapshotState(element);
     updateSelection();
   }
 
@@ -478,10 +522,13 @@
     if (!draft) return;
     textDrafts.delete(input);
     commitOperation(draft.element, draft.before, 'format-text');
+    if (activeTextEdit?.element === draft.element) activeTextEdit.before = snapshotState(draft.element);
     updateSelection();
   }
 
   function toggleDecoration(name) {
+    const command = name === 'line-through' ? 'strikeThrough' : name;
+    if (applyInlineCommand(command)) return;
     applyTextStyle((element, style) => {
       const lines = new Set(style.textDecorationLine.split(/\s+/).filter((line) => line && line !== 'none'));
       if (lines.has(name)) lines.delete(name);
@@ -492,6 +539,7 @@
 
   function revertSelectedLayer() {
     if (!selected || viewMode !== 'experiment') return;
+    finishTextEdit();
     const id = selected.dataset.devnotesBeta3Layer;
     const appliedKeptCount = history
       .slice(0, historyCursor)
@@ -505,12 +553,14 @@
   }
 
   function setViewMode(next) {
+    finishTextEdit();
     viewMode = next;
     applyHistory(next === 'original' ? 0 : historyCursor);
     showNotice(next === 'original' ? 'Showing immutable original.' : 'Showing editable experiment.');
   }
 
   function resetExperiment() {
+    finishTextEdit();
     clearGuides();
     history.splice(0);
     historyCursor = 0;
@@ -520,6 +570,7 @@
   }
 
   function exitBeta3() {
+    finishTextEdit();
     if (noticeTimer) clearTimeout(noticeTimer);
     clearGuides();
     selected?.removeAttribute('data-devnotes-beta3-selected');
@@ -551,6 +602,13 @@
     frameDocument.addEventListener('pointerdown', (event) => {
       const element = event.target.closest?.('[data-devnotes-beta3-layer]');
       if (!element) return;
+      if (activeTextEdit) {
+        if (activeTextEdit.element.contains(event.target)) {
+          selectLayer(activeTextEdit.element);
+          return;
+        }
+        finishTextEdit();
+      }
       clearHover();
       selectLayer(element);
       beginMove(event, element);
@@ -560,6 +618,7 @@
     frameDocument.addEventListener('pointerup', finishMove, true);
     frameDocument.addEventListener('pointercancel', finishMove, true);
     frameDocument.addEventListener('click', (event) => {
+      if (activeTextEdit?.element.contains(event.target)) return;
       if (event.target.closest?.('[data-devnotes-beta3-layer]')) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -568,10 +627,29 @@
     frameDocument.addEventListener('dblclick', (event) => {
       const element = event.target.closest?.('[data-devnotes-beta3-layer]');
       if (!element) return;
+      if (activeTextEdit?.element === element) return;
       selectLayer(element);
-      startCopyEdit();
-      event.preventDefault();
-      event.stopImmediatePropagation();
+      startCopyEdit({ selectAll: false });
+    }, true);
+    frameDocument.addEventListener('selectionchange', () => {
+      if (!activeTextEdit) return;
+      const selection = frame.contentWindow.getSelection();
+      if (!selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      const ancestor = range.commonAncestorContainer.nodeType === 1
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement;
+      if (activeTextEdit.element.contains(ancestor)) savedTextRange = range.cloneRange();
+    });
+    frameDocument.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redoButton.click();
+        else undoButton.click();
+      } else if (event.key === 'Escape' && activeTextEdit) {
+        event.preventDefault();
+        finishTextEdit();
+      }
     }, true);
     frameDocument.addEventListener('scroll', updateSelection, { passive: true });
     frame.contentWindow.addEventListener('resize', updateSelection);
@@ -606,18 +684,18 @@
 
   textTransformSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textTransform = textTransformSelect.value; }));
   textAlignSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textAlign = textAlignSelect.value; }));
-  boldButton.addEventListener('click', () => applyTextStyle((element, style) => { element.style.fontWeight = numericStyle(style.fontWeight, 400) >= 600 ? '400' : '700'; }));
-  italicButton.addEventListener('click', () => applyTextStyle((element, style) => { element.style.fontStyle = style.fontStyle === 'italic' || style.fontStyle === 'oblique' ? 'normal' : 'italic'; }));
+  boldButton.addEventListener('click', () => { if (!applyInlineCommand('bold')) applyTextStyle((element, style) => { element.style.fontWeight = numericStyle(style.fontWeight, 400) >= 600 ? '400' : '700'; }); });
+  italicButton.addEventListener('click', () => { if (!applyInlineCommand('italic')) applyTextStyle((element, style) => { element.style.fontStyle = style.fontStyle === 'italic' || style.fontStyle === 'oblique' ? 'normal' : 'italic'; }); });
   underlineButton.addEventListener('click', () => toggleDecoration('underline'));
   strikeButton.addEventListener('click', () => toggleDecoration('line-through'));
 
   originalButton.addEventListener('click', () => setViewMode('original'));
   experimentButton.addEventListener('click', () => setViewMode('experiment'));
-  undoButton.addEventListener('click', () => { if (historyCursor > 0) { historyCursor -= 1; applyHistory(historyCursor); } });
-  redoButton.addEventListener('click', () => { if (historyCursor < history.length) { historyCursor += 1; applyHistory(historyCursor); } });
+  undoButton.addEventListener('click', () => { finishTextEdit();if (historyCursor > 0) { historyCursor -= 1; applyHistory(historyCursor); } });
+  redoButton.addEventListener('click', () => { finishTextEdit();if (historyCursor < history.length) { historyCursor += 1; applyHistory(historyCursor); } });
   resetButton.addEventListener('click', resetExperiment);
   editCopyButton.addEventListener('click', startCopyEdit);
-  parentButton.addEventListener('click', () => { if (selected?.parentElement && meaningfulElement(selected.parentElement)) selectLayer(selected.parentElement); });
+  parentButton.addEventListener('click', () => { finishTextEdit();if (selected?.parentElement && meaningfulElement(selected.parentElement)) selectLayer(selected.parentElement); });
   revertLayerButton.addEventListener('click', revertSelectedLayer);
   root.querySelector('.exit').addEventListener('click', exitBeta3);
   addEventListener('resize', updateSelection);
@@ -627,8 +705,9 @@
       event.preventDefault();
       if (event.shiftKey) redoButton.click();
       else undoButton.click();
-    } else if (event.key === 'Escape' && selected?.isContentEditable) {
-      selected.blur();
+    } else if (event.key === 'Escape' && activeTextEdit) {
+      event.preventDefault();
+      finishTextEdit();
     }
   }, true);
 

@@ -73,10 +73,28 @@ try {
   const startingSize = Number.parseFloat(await sizeInput.inputValue());
   await sizeInput.fill(String(startingSize + 8));
   await page.locator('#devnotes-beta3 .text-transform').selectOption('uppercase');
-  await page.locator('#devnotes-beta3 .format-underline').click();
+  await page.locator('#devnotes-beta3 .edit-copy').click();
+  await page.locator('#devnotes-beta3').evaluate((host) => {
+    const frame = host.shadowRoot.querySelector('.frame');
+    const doc = frame.contentDocument;
+    const textNode = [...doc.querySelector('h1').querySelectorAll('span')]
+      .find((element) => element.textContent.includes('research')).firstChild;
+    const range = doc.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 'research'.length);
+    const selection = frame.contentWindow.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    doc.dispatchEvent(new Event('selectionchange'));
+  });
+  await page.locator('#devnotes-beta3 .format-bold').click();
+  const inlineFormatting = await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1').innerHTML);
+  assert.match(inlineFormatting, /<(b|strong)[^>]*>research<\/(b|strong)>/i);
+  assert.doesNotMatch(inlineFormatting, /^<(b|strong)[^>]*>/i);
+  await page.locator('#devnotes-beta3 .edit-copy').click();
   await page.locator('#devnotes-beta3 .edit-copy').click();
   await page.keyboard.type('Beta 3 proof headline');
-  await page.locator('#devnotes-beta3 .brand').click();
+  await page.keyboard.press('Escape');
 
   const experiment = await page.locator('#devnotes-beta3').evaluate((host) => {
     const heading = host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1');
@@ -91,7 +109,7 @@ try {
     'resize-layer',
     'format-text',
     'format-text',
-    'format-text',
+    'format-inline-text',
     'edit-copy',
   ]);
 
@@ -117,7 +135,7 @@ try {
   console.log(JSON.stringify({
     target,
     layers: frozenState.layers,
-    operations: ['move-layer', 'resize-layer', 'format-text', 'edit-copy'],
+    operations: ['move-layer', 'resize-layer', 'format-text', 'format-inline-text', 'edit-copy'],
     originalText,
     sourceUnchanged: after === before,
     errors,

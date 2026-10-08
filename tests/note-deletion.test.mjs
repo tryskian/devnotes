@@ -85,6 +85,7 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   assert.match(beta3Source, /textBlockSelector/);
   assert.match(beta3Source, /Text formatting/);
   assert.match(beta3Source, /format-text/);
+  assert.match(beta3Source, /format-inline-text/);
   assert.match(beta3Source, /alignmentCandidates/);
   assert.match(beta3Source, /guide-v/);
 

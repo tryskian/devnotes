@@ -376,13 +376,15 @@ layer's edges and centres against nearby frozen layers, viewport edges and the
 viewport centre. Ancestors and descendants are excluded from one another's snap
 candidates to avoid nested-layout guide noise.
 
-The live portfolio proof captured 15 meaningful layers and verified four
-semantic operation types: `move-layer`, `resize-layer`, `format-text` and
-`edit-copy`. Text formatting currently covers size, line height, letter spacing,
-alignment, case transform, weight, italic, underline and strike-through.
-Original restored the starting markup, formatting and geometry. Reset cleared
-the experiment, Exit removed the overlay, and the underlying live `<main>`
-remained byte-identical.
+The live portfolio proof captured 15 meaningful layers and verified five
+semantic operation types: `move-layer`, `resize-layer`, `format-text`,
+`format-inline-text` and `edit-copy`. Text formatting currently covers size,
+line height, letter spacing, alignment, case transform, weight, italic,
+underline and strike-through. The text block remains one canvas layer while a
+native range inside it can receive Bold, Italic, Underline or Strike without
+promoting each word to a layer. Original restored the starting markup,
+formatting and geometry. Reset cleared the experiment, Exit removed the overlay,
+and the underlying live `<main>` remained byte-identical.
 
 This proof does not implement saved ideas, accepted-target persistence,
 multi-viewport frames, implementation handoff or Binareyes verification. The

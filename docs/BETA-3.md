@@ -43,6 +43,8 @@ Beta 3 currently provides:
 - whole-block copy editing with immutable original markup;
 - text formatting controls for size, line height, letter spacing, alignment,
   case transform, weight, italic, underline and strike-through;
+- inline range formatting so Bold, Italic, Underline and Strike can apply to a
+  selected word or phrase without turning words into canvas layers;
 - one operation per completed move, resize or copy edit;
 - Undo and Redo;
 - immutable Original and editable Experiment views;
@@ -65,6 +67,11 @@ For example, the portfolio headline is one `h1` layer even though its live
 markup contains seven spans. Selecting any word resolves to the full headline.
 The original nested markup remains immutable; copy edits and formatting belong
 only to the experiment.
+
+Entering text editing keeps the block selected as one canvas object. Selecting
+a word or phrase inside that block changes the scope of Bold, Italic, Underline
+and Strike to the native text range. With no active range, those controls format
+the complete text block.
 
 ## Reversibility
 
@@ -93,17 +100,19 @@ portfolio at `http://127.0.0.1:4331/`. It:
 1. stores the live `<main>` source;
 2. loads Beta 3;
 3. freezes the rendered page;
-4. selects a headline phrase and then its parent heading;
+4. selects the authored headline as one text layer;
 5. moves the heading;
-6. verifies a visible viewport-edge alignment guide and snap;
+6. verifies a visible alignment guide and snap;
 7. widens it;
-8. edits the captured headline copy as one text block;
-9. changes font size, case transform and text decoration;
-10. verifies semantic movement, resize, format and copy-edit operations;
-11. checks Original geometry, formatting and copy;
-12. returns to Experiment;
-13. resets and exits;
-14. compares the live `<main>` before and after.
+8. changes font size and case transform;
+9. enters text editing, selects the word `research` and bolds only that range;
+10. edits the captured headline copy as one text block;
+11. verifies movement, resize, block-format, inline-format and copy-edit
+    operations;
+12. checks Original geometry, formatting, nested markup and copy;
+13. returns to Experiment;
+14. resets and exits;
+15. compares the live `<main>` before and after.
 
 Verified result on 8 October 2026:
 
@@ -114,6 +123,7 @@ Verified result on 8 October 2026:
     "move-layer",
     "resize-layer",
     "format-text",
+    "format-inline-text",
     "edit-copy"
   ],
   "sourceUnchanged": true,

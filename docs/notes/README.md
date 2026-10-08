@@ -13,3 +13,9 @@ They complement the feature boundaries in [`BETA-1.md`](../BETA-1.md) and
 The first two documents distinguish conversation decisions from verified Git
 history. The handoff document is explicitly prospective. It does not describe
 a completed integration.
+
+## Architecture
+
+- [Frozen layered snapshot](../architecture/FROZEN_LAYERED_SNAPSHOT.md): the
+  accepted 8 October concept for a reversible Figma-like page overlay. This is
+  documented but not implemented.

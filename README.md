@@ -31,6 +31,11 @@ Beta 2 turns the successful annotation loop into a working notebook:
 See [`docs/BETA-2.md`](docs/BETA-2.md) for the current boundary. The original
 annotation-loop record remains in [`docs/BETA-1.md`](docs/BETA-1.md).
 
+The accepted next-direction concept is documented separately in
+[`docs/architecture/FROZEN_LAYERED_SNAPSHOT.md`](docs/architecture/FROZEN_LAYERED_SNAPSHOT.md).
+It describes a Figma-like editable overlay over a frozen layered page capture;
+it is not implemented in the current Beta 2 runtime.
+
 ## Run
 
 ```sh

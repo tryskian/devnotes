@@ -365,14 +365,24 @@ full Binareyes handoff.
 
 The bounded first proof is implemented as a separate `beta3.js` loader. It
 freezes the current viewport into a script-free iframe overlay and indexes
-meaningful rendered elements as nested layers. The proof supports selection,
-Parent traversal, movement, width and height resizing, simple text editing,
-Undo, Redo, per-layer revert, Original/Experiment comparison, Reset and Exit.
+meaningful rendered elements as nested layers. Authored text blocks remain
+whole layers even when their markup contains word or phrase spans. The proof
+supports selection, Parent traversal, movement, width and height resizing,
+whole-block copy editing, common text formatting, Undo, Redo, per-layer revert,
+Original/Experiment comparison, Reset and Exit.
 
-The live portfolio proof captured 26 layers and verified three semantic
-operations: `move-layer`, `resize-layer` and `edit-copy`. Original restored the
-starting copy and geometry. Reset cleared the experiment, Exit removed the
-overlay, and the underlying live `<main>` remained byte-identical.
+Movement includes magenta alignment guides and snapping for the selected
+layer's edges and centres against nearby frozen layers, viewport edges and the
+viewport centre. Ancestors and descendants are excluded from one another's snap
+candidates to avoid nested-layout guide noise.
+
+The live portfolio proof captured 15 meaningful layers and verified four
+semantic operation types: `move-layer`, `resize-layer`, `format-text` and
+`edit-copy`. Text formatting currently covers size, line height, letter spacing,
+alignment, case transform, weight, italic, underline and strike-through.
+Original restored the starting markup, formatting and geometry. Reset cleared
+the experiment, Exit removed the overlay, and the underlying live `<main>`
+remained byte-identical.
 
 This proof does not implement saved ideas, accepted-target persistence,
 multi-viewport frames, implementation handoff or Binareyes verification. The

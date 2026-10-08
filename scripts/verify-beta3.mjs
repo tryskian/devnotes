@@ -28,16 +28,10 @@ try {
 
   const textRect = await page.locator('#devnotes-beta3').evaluate((host) => {
     const doc = host.shadowRoot.querySelector('.frame').contentDocument;
-    const heading = doc.querySelector('h1');
-    const element = [...heading.querySelectorAll('*')]
-      .find((candidate) => candidate.childElementCount === 0 && candidate.textContent.trim())
-      || heading;
-    const rect = element.getBoundingClientRect();
+    const rect = doc.querySelector('h1').getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
   await page.mouse.click(textRect.x + textRect.width / 2, textRect.y + textRect.height / 2);
-  const parentButton = page.locator('#devnotes-beta3 .select-parent');
-  if (!await parentButton.isDisabled()) await parentButton.click();
 
   const headingBefore = await page.locator('#devnotes-beta3').evaluate((host) => {
     const element = host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1');
@@ -48,8 +42,25 @@ try {
   assert.ok(labelBox);
   await page.mouse.move(labelBox.x + labelBox.width / 2, labelBox.y + labelBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(labelBox.x + labelBox.width / 2 + 42, labelBox.y + labelBox.height / 2 + 26, { steps: 8 });
+  await page.mouse.move(labelBox.x + labelBox.width / 2 - headingBefore.x + 3, labelBox.y + labelBox.height / 2, { steps: 8 });
+  const guide = await page.locator('#devnotes-beta3').evaluate((host) => {
+    const element = host.shadowRoot.querySelector('.guide-v');
+    return { hidden: element.hidden, left: Number.parseFloat(element.style.left) };
+  });
+  assert.equal(guide.hidden, false);
+  assert.ok(Number.isFinite(guide.left));
   await page.mouse.up();
+  assert.equal(await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.guide-v').hidden), true);
+  const movedHeading = await page.locator('#devnotes-beta3').evaluate((host) => {
+    const heading = host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1');
+    const rect = heading.getBoundingClientRect();
+    return { x: rect.x, width: rect.width };
+  });
+  assert.ok(Math.min(
+    Math.abs(movedHeading.x - guide.left),
+    Math.abs(movedHeading.x + movedHeading.width / 2 - guide.left),
+    Math.abs(movedHeading.x + movedHeading.width - guide.left),
+  ) < 1);
 
   const eastBox = await page.locator('#devnotes-beta3 .handle-e').boundingBox();
   assert.ok(eastBox);
@@ -58,17 +69,13 @@ try {
   await page.mouse.move(eastBox.x + eastBox.width / 2 + 90, eastBox.y + eastBox.height / 2, { steps: 8 });
   await page.mouse.up();
 
-  const editableRect = await page.locator('#devnotes-beta3').evaluate((host) => {
-    const doc = host.shadowRoot.querySelector('.frame').contentDocument;
-    const heading = doc.querySelector('h1');
-    const element = [...heading.querySelectorAll('[data-devnotes-beta3-text-layer="true"]')][0]
-      || heading;
-    const rect = element.getBoundingClientRect();
-    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-  });
-  await page.mouse.click(editableRect.x + editableRect.width / 2, editableRect.y + editableRect.height / 2);
+  const sizeInput = page.locator('#devnotes-beta3 .font-size');
+  const startingSize = Number.parseFloat(await sizeInput.inputValue());
+  await sizeInput.fill(String(startingSize + 8));
+  await page.locator('#devnotes-beta3 .text-transform').selectOption('uppercase');
+  await page.locator('#devnotes-beta3 .format-underline').click();
   await page.locator('#devnotes-beta3 .edit-copy').click();
-  await page.keyboard.type('Beta 3 proof');
+  await page.keyboard.type('Beta 3 proof headline');
   await page.locator('#devnotes-beta3 .brand').click();
 
   const experiment = await page.locator('#devnotes-beta3').evaluate((host) => {
@@ -76,10 +83,17 @@ try {
     const rect = heading.getBoundingClientRect();
     return { x: rect.x, width: rect.width, text: heading.textContent, state: window.__devNotesBeta3.state() };
   });
-  assert.match(experiment.text, /Beta 3 proof/);
-  assert.ok(experiment.x > headingBefore.x + 30);
+  assert.equal(experiment.text, 'Beta 3 proof headline');
+  assert.ok(Math.abs(experiment.x - movedHeading.x) < 1);
   assert.ok(experiment.width > headingBefore.width + 70);
-  assert.equal(experiment.state.history.length, 3);
+  assert.deepEqual(experiment.state.history.map((operation) => operation.type), [
+    'move-layer',
+    'resize-layer',
+    'format-text',
+    'format-text',
+    'format-text',
+    'edit-copy',
+  ]);
 
   await page.locator('#devnotes-beta3 .view-original').click();
   const original = await page.locator('#devnotes-beta3').evaluate((host) => {
@@ -103,7 +117,7 @@ try {
   console.log(JSON.stringify({
     target,
     layers: frozenState.layers,
-    operations: ['move-layer', 'resize-layer', 'edit-copy'],
+    operations: ['move-layer', 'resize-layer', 'format-text', 'edit-copy'],
     originalText,
     sourceUnchanged: after === before,
     errors,

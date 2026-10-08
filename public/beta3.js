@@ -40,7 +40,7 @@
   root.innerHTML = `
     <style>
       :host{all:initial;color-scheme:light}*{box-sizing:border-box}
-      button,input{font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      button,input,select{font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       button{min-height:38px;padding:0 11px;border:0;border-right:1px solid #050505;border-radius:0;background:#fefefe;color:#050505;text-transform:uppercase;letter-spacing:.055em;cursor:pointer}
       button:last-child{border-right:0}button:hover,button[aria-pressed="true"]{background:#050505;color:#fefefe}button:disabled{opacity:.32;cursor:not-allowed;background:#fefefe;color:#050505}
       button:focus-visible,input:focus-visible{outline:2px solid #3264ff;outline-offset:3px}
@@ -49,15 +49,17 @@
       .topbar{position:fixed;z-index:20;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;max-width:calc(100vw - 24px);border:1px solid #050505;background:#fefefe;box-shadow:0 5px 18px #05050518}
       .brand{display:grid;align-content:center;min-width:max-content;padding:0 13px;border-right:1px solid #050505;font:700 11px/1.15 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.07em;text-transform:uppercase}.brand small{display:block;margin-top:3px;color:#777;font-size:8px;font-weight:500}
       .topbar-group{display:flex;min-width:0;border-right:1px solid #050505}.topbar-group:last-child{border-right:0}.layer-count{display:grid;min-width:62px;place-items:center;padding:0 10px;color:#666;font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
-      .inspector{position:fixed;z-index:18;right:14px;top:70px;width:min(294px,calc(100vw - 28px));padding:13px 14px 14px;border:1px solid #050505;background:#fefefef5;box-shadow:0 8px 22px #05050516;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .inspector[hidden]{display:none}.inspector-header{display:flex;align-items:start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #bbb}.layer-name{min-width:0;margin:0;font-size:12px;line-height:1.35;word-break:break-word}.source-name{display:block;margin-top:4px;color:#777;font-size:9px;font-weight:500}.geometry{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:11px 0;background:#bbb;border:1px solid #bbb}.metric{padding:7px 6px;background:#fefefe}.metric span{display:block;color:#777;font-size:8px;text-transform:uppercase}.metric output{display:block;margin-top:3px;font-size:10px}.inspector-actions{display:flex;border:1px solid #050505}.inspector-actions button{flex:1;padding:0 7px}.inspector-note{margin:10px 0 0;color:#666;font-size:9px;line-height:1.45}
+      .inspector{position:fixed;z-index:18;right:14px;top:70px;width:min(336px,calc(100vw - 28px));max-height:calc(100svh - 84px);overflow:auto;padding:13px 14px 14px;border:1px solid #050505;background:#fefefef5;box-shadow:0 8px 22px #05050516;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .inspector[hidden]{display:none}.inspector-header{display:flex;align-items:start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #bbb}.layer-name{min-width:0;margin:0;font-size:12px;line-height:1.35;word-break:break-word}.source-name{display:block;margin-top:4px;color:#777;font-size:9px;font-weight:500}.geometry{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:11px 0;background:#bbb;border:1px solid #bbb}.metric{padding:7px 6px;background:#fefefe}.metric span{display:block;color:#777;font-size:8px;text-transform:uppercase}.metric output{display:block;margin-top:3px;font-size:10px}.text-controls{margin:0 0 11px;padding:10px 0;border-top:1px solid #bbb;border-bottom:1px solid #bbb}.text-controls[hidden]{display:none}.text-controls-title{display:block;margin-bottom:8px;color:#666;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.text-measures{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.text-field{display:grid;gap:4px;color:#777;font-size:8px;text-transform:uppercase}.text-field input,.text-field select{width:100%;min-width:0;height:30px;padding:0 6px;border:1px solid #aaa;border-radius:0;background:#fefefe;color:#050505}.text-selects{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.text-format-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:7px;border:1px solid #050505}.text-format-actions button{min-height:32px;padding:0 5px}.inspector-actions{display:flex;border:1px solid #050505}.inspector-actions button{flex:1;padding:0 7px}.inspector-note{margin:10px 0 0;color:#666;font-size:9px;line-height:1.45}
       .selection{position:fixed;z-index:12;display:none;border:2px solid #3264ff;pointer-events:none}.selection.visible{display:block}.selection-label{position:absolute;left:-2px;top:-22px;max-width:260px;padding:4px 6px;background:#3264ff;color:#fff;font:600 9px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:move}.handle{position:absolute;width:12px;height:12px;border:2px solid #3264ff;background:#fefefe;pointer-events:auto}.handle-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.handle-s{bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}.handle-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+      .guide{position:fixed;z-index:11;background:#e5008a;pointer-events:none}.guide[hidden]{display:none}.guide-v{top:0;bottom:0;width:1px}.guide-h{left:0;right:0;height:1px}
       .notice{position:fixed;z-index:30;left:50%;bottom:14px;transform:translateX(-50%);width:min(520px,calc(100vw - 28px));padding:10px 13px;border:1px solid #050505;background:#fefefe;box-shadow:0 7px 22px #05050518;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.notice[hidden]{display:none}
       .editing-original .selection{opacity:.45}.editing-original .inspector{opacity:.7}
       @media(max-width:760px){.topbar{left:10px;right:10px;transform:none;overflow-x:auto}.brand{display:none}.layer-count{display:none}.inspector{top:auto;bottom:62px;left:10px;right:10px;width:auto}.notice{bottom:10px}}
     </style>
     <div class="stage">
       <iframe class="frame" title="Frozen page experiment" sandbox="allow-same-origin"></iframe>
+      <div class="guide guide-v" hidden></div><div class="guide guide-h" hidden></div>
       <div class="selection" aria-hidden="true"><span class="selection-label"></span><span class="handle handle-e" data-direction="e"></span><span class="handle handle-s" data-direction="s"></span><span class="handle handle-se" data-direction="se"></span></div>
     </div>
     <header class="topbar" aria-label="Beta 3 frozen canvas controls">
@@ -70,6 +72,12 @@
     <aside class="inspector" hidden aria-label="Selected layer">
       <h2 class="layer-name"></h2>
       <div class="geometry"><div class="metric"><span>X</span><output data-metric="x">0</output></div><div class="metric"><span>Y</span><output data-metric="y">0</output></div><div class="metric"><span>W</span><output data-metric="width">0</output></div><div class="metric"><span>H</span><output data-metric="height">0</output></div></div>
+      <section class="text-controls" hidden aria-label="Text formatting">
+        <strong class="text-controls-title">Text formatting</strong>
+        <div class="text-measures"><label class="text-field">Size<input class="font-size" type="number" min="6" max="400" step="1"></label><label class="text-field">Leading<input class="line-height" type="number" min="6" max="600" step="1"></label><label class="text-field">Tracking<input class="letter-spacing" type="number" min="-20" max="100" step="0.1"></label></div>
+        <div class="text-selects"><label class="text-field">Case<select class="text-transform"><option value="none">None</option><option value="uppercase">Uppercase</option><option value="lowercase">Lowercase</option><option value="capitalize">Capitalize</option></select></label><label class="text-field">Align<select class="text-align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option><option value="justify">Justify</option></select></label></div>
+        <div class="text-format-actions"><button class="format-bold" type="button" aria-pressed="false">Bold</button><button class="format-italic" type="button" aria-pressed="false">Italic</button><button class="format-underline" type="button" aria-pressed="false">Underline</button><button class="format-strike" type="button" aria-pressed="false">Strike</button></div>
+      </section>
       <div class="inspector-actions"><button class="edit-copy" type="button">Edit copy</button><button class="select-parent" type="button">Parent</button><button class="revert-layer" type="button">Revert layer</button></div>
       <p class="inspector-note">Drag the object or its blue label to move it. Use the handles to resize. Double-click simple text to edit it.</p>
     </aside>
@@ -79,6 +87,8 @@
   const frame = root.querySelector('.frame');
   const selectionBox = root.querySelector('.selection');
   const selectionLabel = root.querySelector('.selection-label');
+  const verticalGuide = root.querySelector('.guide-v');
+  const horizontalGuide = root.querySelector('.guide-h');
   const inspector = root.querySelector('.inspector');
   const layerName = root.querySelector('.layer-name');
   const layerCount = root.querySelector('.layer-count');
@@ -91,6 +101,16 @@
   const editCopyButton = root.querySelector('.edit-copy');
   const parentButton = root.querySelector('.select-parent');
   const revertLayerButton = root.querySelector('.revert-layer');
+  const textControls = root.querySelector('.text-controls');
+  const fontSizeInput = root.querySelector('.font-size');
+  const lineHeightInput = root.querySelector('.line-height');
+  const letterSpacingInput = root.querySelector('.letter-spacing');
+  const textTransformSelect = root.querySelector('.text-transform');
+  const textAlignSelect = root.querySelector('.text-align');
+  const boldButton = root.querySelector('.format-bold');
+  const italicButton = root.querySelector('.format-italic');
+  const underlineButton = root.querySelector('.format-underline');
+  const strikeButton = root.querySelector('.format-strike');
 
   const originalPageScroll = { x: scrollX, y: scrollY };
   const layers = new Map();
@@ -103,6 +123,9 @@
   let drag = null;
   let resize = null;
   let noticeTimer = null;
+  const textDrafts = new Map();
+
+  const textBlockSelector = 'h1,h2,h3,h4,h5,h6,p,a,button,label,summary,figcaption,dt,dd,blockquote,pre,code,li';
 
   function showNotice(message, duration = 2600) {
     if (noticeTimer) clearTimeout(noticeTimer);
@@ -126,35 +149,41 @@
     return `${element.tagName.toLowerCase()}${suffix}`;
   }
 
-  function simpleTextLayer(element) {
-    return element.dataset.devnotesBeta3TextLayer === 'true'
-      || (element.childElementCount === 0 && Boolean((element.textContent || '').trim()));
+  function textLayer(element) {
+    return element?.dataset.devnotesBeta3TextLayer === 'true';
   }
 
   function snapshotState(element) {
     return {
       style: element.getAttribute('style'),
-      text: simpleTextLayer(element) ? element.textContent : null,
+      html: textLayer(element) ? element.innerHTML : null,
     };
   }
 
   function applyState(element, state) {
     if (state.style === null || state.style === undefined) element.removeAttribute('style');
     else element.setAttribute('style', state.style);
-    if (state.text !== null && state.text !== undefined && simpleTextLayer(element)) element.textContent = state.text;
+    if (state.html !== null && state.html !== undefined && textLayer(element)) element.innerHTML = state.html;
   }
 
   function sameState(a, b) {
-    return a.style === b.style && a.text === b.text;
+    return a.style === b.style && a.html === b.html;
   }
 
   function assignLayers() {
-    const candidates = [...frameDocument.body.querySelectorAll('*')].filter(meaningfulElement);
+    const visible = [...frameDocument.body.querySelectorAll('*')].filter(meaningfulElement);
+    const candidates = visible.filter((element) => {
+      const authoredTextRoot = element.closest(textBlockSelector);
+      return !authoredTextRoot || authoredTextRoot === element || !meaningfulElement(authoredTextRoot);
+    });
     candidates.forEach((element, index) => {
       const id = `layer-${index + 1}`;
-      const textLayer = element.childElementCount === 0 && Boolean((element.textContent || '').trim());
+      const hasText = Boolean((element.textContent || '').trim());
+      const nestedTextRoot = element.querySelector(textBlockSelector);
+      const isTextLayer = hasText && (element.childElementCount === 0
+        || (element.matches(textBlockSelector) && !nestedTextRoot));
       element.dataset.devnotesBeta3Layer = id;
-      if (textLayer) element.dataset.devnotesBeta3TextLayer = 'true';
+      if (isTextLayer) element.dataset.devnotesBeta3TextLayer = 'true';
       layers.set(id, {
         id,
         element,
@@ -189,6 +218,33 @@
     updateControls();
   }
 
+  function numericStyle(value, fallback = 0) {
+    const number = Number.parseFloat(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function updateTextControls() {
+    const visible = Boolean(selected && textLayer(selected));
+    textControls.hidden = !visible;
+    if (!visible) return;
+    const style = frame.contentWindow.getComputedStyle(selected);
+    const size = numericStyle(style.fontSize, 16);
+    fontSizeInput.value = String(Math.round(size * 10) / 10);
+    lineHeightInput.value = String(Math.round(numericStyle(style.lineHeight, size * 1.2) * 10) / 10);
+    letterSpacingInput.value = String(Math.round(numericStyle(style.letterSpacing, 0) * 10) / 10);
+    const transform = ['none', 'uppercase', 'lowercase', 'capitalize'].includes(style.textTransform)
+      ? style.textTransform
+      : 'none';
+    const align = style.textAlign === 'start' ? 'left' : style.textAlign === 'end' ? 'right' : style.textAlign;
+    textTransformSelect.value = transform;
+    textAlignSelect.value = ['left', 'center', 'right', 'justify'].includes(align) ? align : 'left';
+    boldButton.setAttribute('aria-pressed', String(numericStyle(style.fontWeight, 400) >= 600));
+    italicButton.setAttribute('aria-pressed', String(style.fontStyle === 'italic' || style.fontStyle === 'oblique'));
+    const decorations = new Set(style.textDecorationLine.split(/\s+/));
+    underlineButton.setAttribute('aria-pressed', String(decorations.has('underline')));
+    strikeButton.setAttribute('aria-pressed', String(decorations.has('line-through')));
+  }
+
   function updateControls() {
     const editable = viewMode === 'experiment';
     originalButton.setAttribute('aria-pressed', String(!editable));
@@ -196,10 +252,12 @@
     undoButton.disabled = !editable || historyCursor === 0;
     redoButton.disabled = !editable || historyCursor >= history.length;
     resetButton.disabled = !editable || history.length === 0;
-    editCopyButton.disabled = !editable || !selected || !simpleTextLayer(selected);
+    editCopyButton.disabled = !editable || !selected || !textLayer(selected);
     parentButton.disabled = !selected || !meaningfulElement(selected.parentElement);
     revertLayerButton.disabled = !editable || !selected || !history.some((operation, index) => index < historyCursor && operation.layerId === selected.dataset.devnotesBeta3Layer);
+    for (const control of [fontSizeInput, lineHeightInput, letterSpacingInput, textTransformSelect, textAlignSelect, boldButton, italicButton, underlineButton, strikeButton]) control.disabled = !editable || !selected || !textLayer(selected);
     host.classList.toggle('editing-original', !editable);
+    updateTextControls();
   }
 
   function metric(name, value) {
@@ -210,6 +268,7 @@
     if (!selected || !selected.isConnected) {
       selectionBox.classList.remove('visible');
       inspector.hidden = true;
+      textControls.hidden = true;
       return;
     }
     const rect = selected.getBoundingClientRect();
@@ -253,6 +312,36 @@
     return { x: parts[0] || 0, y: parts[1] || 0 };
   }
 
+  function clearGuides() {
+    verticalGuide.hidden = true;
+    horizontalGuide.hidden = true;
+  }
+
+  function alignmentCandidates(element) {
+    const x = new Set([0, frame.contentWindow.innerWidth / 2, frame.contentWindow.innerWidth]);
+    const y = new Set([0, frame.contentWindow.innerHeight / 2, frame.contentWindow.innerHeight]);
+    for (const layer of layers.values()) {
+      const candidate = layer.element;
+      if (candidate === element || !candidate.isConnected || candidate.contains(element) || element.contains(candidate)) continue;
+      const rect = candidate.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2 || rect.right < 0 || rect.bottom < 0 || rect.left > innerWidth || rect.top > innerHeight) continue;
+      x.add(rect.left);x.add(rect.left + rect.width / 2);x.add(rect.right);
+      y.add(rect.top);y.add(rect.top + rect.height / 2);y.add(rect.bottom);
+    }
+    return { x: [...x], y: [...y] };
+  }
+
+  function closestSnap(points, candidates, tolerance = 7) {
+    let best = null;
+    for (const point of points) {
+      for (const candidate of candidates) {
+        const offset = candidate - point;
+        if (Math.abs(offset) <= tolerance && (!best || Math.abs(offset) < Math.abs(best.offset))) best = { candidate, offset };
+      }
+    }
+    return best;
+  }
+
   function beginMove(event, element, captureTarget = element) {
     if (viewMode !== 'experiment' || event.button !== 0 || element.isContentEditable) return;
     const translate = parseTranslate(element);
@@ -262,6 +351,8 @@
       startX: event.clientX,
       startY: event.clientY,
       translate,
+      rect: element.getBoundingClientRect(),
+      candidates: alignmentCandidates(element),
       before: snapshotState(element),
       captureTarget,
     };
@@ -273,7 +364,15 @@
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    drag.element.style.translate = `${drag.translate.x + dx}px ${drag.translate.y + dy}px`;
+    const proposedX = [drag.rect.left + dx, drag.rect.left + drag.rect.width / 2 + dx, drag.rect.right + dx];
+    const proposedY = [drag.rect.top + dy, drag.rect.top + drag.rect.height / 2 + dy, drag.rect.bottom + dy];
+    const snapX = closestSnap(proposedX, drag.candidates.x);
+    const snapY = closestSnap(proposedY, drag.candidates.y);
+    drag.element.style.translate = `${drag.translate.x + dx + (snapX?.offset || 0)}px ${drag.translate.y + dy + (snapY?.offset || 0)}px`;
+    verticalGuide.hidden = !snapX;
+    horizontalGuide.hidden = !snapY;
+    if (snapX) verticalGuide.style.left = `${snapX.candidate}px`;
+    if (snapY) horizontalGuide.style.top = `${snapY.candidate}px`;
     updateSelection();
   }
 
@@ -282,6 +381,7 @@
     drag.captureTarget.releasePointerCapture?.(event.pointerId);
     commitOperation(drag.element, drag.before, 'move-layer');
     drag = null;
+    clearGuides();
     updateSelection();
   }
 
@@ -328,8 +428,8 @@
   }
 
   function startCopyEdit() {
-    if (!selected || !simpleTextLayer(selected) || viewMode !== 'experiment') {
-      showNotice('Select a simple text layer to edit its copy.');
+    if (!selected || !textLayer(selected) || viewMode !== 'experiment') {
+      showNotice('Select a text layer to edit its copy.');
       return;
     }
     const element = selected;
@@ -349,6 +449,45 @@
       updateSelection();
     };
     element.addEventListener('blur', finish);
+  }
+
+  function applyTextStyle(mutator) {
+    if (!selected || !textLayer(selected) || viewMode !== 'experiment') return;
+    const element = selected;
+    const before = snapshotState(element);
+    mutator(element, frame.contentWindow.getComputedStyle(element));
+    commitOperation(element, before, 'format-text');
+    updateSelection();
+  }
+
+  function beginTextMeasure(input) {
+    if (!selected || !textLayer(selected) || viewMode !== 'experiment') return;
+    textDrafts.set(input, { element: selected, before: snapshotState(selected) });
+  }
+
+  function previewTextMeasure(input, property) {
+    const draft = textDrafts.get(input);
+    const value = Number.parseFloat(input.value);
+    if (!draft || !Number.isFinite(value)) return;
+    draft.element.style[property] = `${value}px`;
+    updateSelection();
+  }
+
+  function finishTextMeasure(input) {
+    const draft = textDrafts.get(input);
+    if (!draft) return;
+    textDrafts.delete(input);
+    commitOperation(draft.element, draft.before, 'format-text');
+    updateSelection();
+  }
+
+  function toggleDecoration(name) {
+    applyTextStyle((element, style) => {
+      const lines = new Set(style.textDecorationLine.split(/\s+/).filter((line) => line && line !== 'none'));
+      if (lines.has(name)) lines.delete(name);
+      else lines.add(name);
+      element.style.textDecorationLine = lines.size ? [...lines].join(' ') : 'none';
+    });
   }
 
   function revertSelectedLayer() {
@@ -372,6 +511,7 @@
   }
 
   function resetExperiment() {
+    clearGuides();
     history.splice(0);
     historyCursor = 0;
     viewMode = 'experiment';
@@ -381,6 +521,7 @@
 
   function exitBeta3() {
     if (noticeTimer) clearTimeout(noticeTimer);
+    clearGuides();
     selected?.removeAttribute('data-devnotes-beta3-selected');
     clearHover();
     host.remove();
@@ -451,6 +592,24 @@
   selectionLabel.addEventListener('pointermove', movePointer);
   selectionLabel.addEventListener('pointerup', finishMove);
   selectionLabel.addEventListener('pointercancel', finishMove);
+
+  for (const [input, property] of [
+    [fontSizeInput, 'fontSize'],
+    [lineHeightInput, 'lineHeight'],
+    [letterSpacingInput, 'letterSpacing'],
+  ]) {
+    input.addEventListener('focus', () => beginTextMeasure(input));
+    input.addEventListener('input', () => previewTextMeasure(input, property));
+    input.addEventListener('change', () => finishTextMeasure(input));
+    input.addEventListener('blur', () => finishTextMeasure(input));
+  }
+
+  textTransformSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textTransform = textTransformSelect.value; }));
+  textAlignSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textAlign = textAlignSelect.value; }));
+  boldButton.addEventListener('click', () => applyTextStyle((element, style) => { element.style.fontWeight = numericStyle(style.fontWeight, 400) >= 600 ? '400' : '700'; }));
+  italicButton.addEventListener('click', () => applyTextStyle((element, style) => { element.style.fontStyle = style.fontStyle === 'italic' || style.fontStyle === 'oblique' ? 'normal' : 'italic'; }));
+  underlineButton.addEventListener('click', () => toggleDecoration('underline'));
+  strikeButton.addEventListener('click', () => toggleDecoration('line-through'));
 
   originalButton.addEventListener('click', () => setViewMode('original'));
   experimentButton.addEventListener('click', () => setViewMode('experiment'));

@@ -31,11 +31,18 @@ Beta 3 currently provides:
 - paused CSS animation and transition behaviour;
 - meaningful visible-element discovery;
 - source identity labels for captured layers;
+- authored text-block grouping so inline word and phrase spans do not become
+  separate canvas objects;
 - hover discovery and click selection;
 - Parent traversal for nested layers;
 - direct movement of a layer by dragging the object or its blue label;
+- magenta alignment guides and snapping for layer edges, centres, viewport
+  edges and viewport centre;
 - east, south and southeast resize handles;
 - simple text-layer copy editing;
+- whole-block copy editing with immutable original markup;
+- text formatting controls for size, line height, letter spacing, alignment,
+  case transform, weight, italic, underline and strike-through;
 - one operation per completed move, resize or copy edit;
 - Undo and Redo;
 - immutable Original and editable Experiment views;
@@ -49,14 +56,15 @@ page is the primary working surface.
 
 ## Layer boundary
 
-All rendered elements with measurable visible bounds are indexed in the proof.
-Nested structures remain nested. For example, the portfolio headline is one
-parent layer containing seven editable text spans.
+Rendered elements with measurable visible bounds are indexed in the proof.
+Authored text blocks remain whole layers. Inline spans used to control word or
+phrase layout remain inside their text block and do not clutter the canvas as
+individual objects.
 
-Clicking a phrase selects the phrase. **Parent** selects the full headline.
-The selected parent can then be moved through its blue layer label and resized
-through the handles. This preserves the real depth of the rendered page instead
-of flattening it into one artificial object.
+For example, the portfolio headline is one `h1` layer even though its live
+markup contains seven spans. Selecting any word resolves to the full headline.
+The original nested markup remains immutable; copy edits and formatting belong
+only to the experiment.
 
 ## Reversibility
 
@@ -87,22 +95,25 @@ portfolio at `http://127.0.0.1:4331/`. It:
 3. freezes the rendered page;
 4. selects a headline phrase and then its parent heading;
 5. moves the heading;
-6. widens it;
-7. edits a captured text phrase;
-8. verifies three semantic history operations;
-9. checks Original geometry and copy;
-10. returns to Experiment;
-11. resets and exits;
-12. compares the live `<main>` before and after.
+6. verifies a visible viewport-edge alignment guide and snap;
+7. widens it;
+8. edits the captured headline copy as one text block;
+9. changes font size, case transform and text decoration;
+10. verifies semantic movement, resize, format and copy-edit operations;
+11. checks Original geometry, formatting and copy;
+12. returns to Experiment;
+13. resets and exits;
+14. compares the live `<main>` before and after.
 
 Verified result on 8 October 2026:
 
 ```json
 {
-  "layers": 26,
+  "layers": 15,
   "operations": [
     "move-layer",
     "resize-layer",
+    "format-text",
     "edit-copy"
   ],
   "sourceUnchanged": true,
@@ -123,7 +134,7 @@ This proof does not yet implement:
 - visual receipts for experimental frames;
 - arbitrary layer grouping;
 - proportional group scaling;
-- alignment guides or spacing measurements;
+- spacing measurements;
 - a layer-tree panel;
 - pseudo-element editing;
 - raster fallbacks for Canvas, WebGL, video or cross-origin embeds;
@@ -131,9 +142,9 @@ This proof does not yet implement:
 - Binareyes masks or verification;
 - source-code generation or mutation.
 
-Text editing is intentionally limited to simple captured text layers. Composite
-copy can be edited through its child text layers without destroying the parent
-structure.
+Text formatting is intentionally bounded to common typographic properties. Font
+family selection, colour editing, shadows, variable-font axes and arbitrary CSS
+entry are not part of this proof.
 
 ## Boundary
 

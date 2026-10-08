@@ -82,6 +82,11 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   const beta3Source = await beta3Response.text();
   assert.match(beta3Source, /Frozen canvas proof/);
   assert.match(beta3Source, /sourceUnchanged: true/);
+  assert.match(beta3Source, /textBlockSelector/);
+  assert.match(beta3Source, /Text formatting/);
+  assert.match(beta3Source, /format-text/);
+  assert.match(beta3Source, /alignmentCandidates/);
+  assert.match(beta3Source, /guide-v/);
 
   const preflightResponse = await fetch(`${origin}/api/notes/test-note`, {
     method: 'OPTIONS',

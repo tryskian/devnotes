@@ -33,8 +33,8 @@ annotation-loop record remains in [`docs/BETA-1.md`](docs/BETA-1.md).
 
 The accepted next-direction concept is documented separately in
 [`docs/architecture/FROZEN_LAYERED_SNAPSHOT.md`](docs/architecture/FROZEN_LAYERED_SNAPSHOT.md).
-It describes a Figma-like editable overlay over a frozen layered page capture;
-it is not implemented in the current Beta 2 runtime.
+The additive first proof is documented in [`docs/BETA-3.md`](docs/BETA-3.md).
+Beta 2 remains intact as the stable annotation notebook.
 
 ## Run
 
@@ -52,6 +52,10 @@ Derived visual receipts live in `.data/thumbnails.json`.
 
 The annotation ledger is intentionally ignored by Git. `.data/.gitkeep`
 preserves the directory without publishing private note content.
+
+The dashboard also exposes a separate **Load Beta 3** bookmarklet. It freezes
+the current viewport into an editable layered overlay. Exiting Beta 3 restores
+the ordinary DevNotes overlay when it was already present.
 
 ## Tools
 
@@ -126,5 +130,6 @@ preserves the directory without publishing private note content.
 npm run check
 npm test
 npm run thumbnails
+npm run verify:beta3
 curl http://127.0.0.1:4347/health
 ```

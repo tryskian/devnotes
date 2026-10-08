@@ -1,7 +1,7 @@
 # Frozen layered snapshot
 
 Date: 8 October 2026
-Status: accepted product concept; not implemented
+Status: accepted product concept; bounded Beta 3 proof implemented
 
 ## Product kernel
 
@@ -360,6 +360,23 @@ The first proof is deliberately narrow:
 Success proves the medium. It does not yet require multi-viewport ideas,
 generalized grouping, arbitrary transform controls, source generation or the
 full Binareyes handoff.
+
+## Beta 3 proof state
+
+The bounded first proof is implemented as a separate `beta3.js` loader. It
+freezes the current viewport into a script-free iframe overlay and indexes
+meaningful rendered elements as nested layers. The proof supports selection,
+Parent traversal, movement, width and height resizing, simple text editing,
+Undo, Redo, per-layer revert, Original/Experiment comparison, Reset and Exit.
+
+The live portfolio proof captured 26 layers and verified three semantic
+operations: `move-layer`, `resize-layer` and `edit-copy`. Original restored the
+starting copy and geometry. Reset cleared the experiment, Exit removed the
+overlay, and the underlying live `<main>` remained byte-identical.
+
+This proof does not implement saved ideas, accepted-target persistence,
+multi-viewport frames, implementation handoff or Binareyes verification. The
+current runtime boundary is documented in [`../BETA-3.md`](../BETA-3.md).
 
 ## Open questions
 

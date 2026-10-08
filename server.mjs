@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const clientPath = join(root, 'public', 'client.js');
+const beta3Path = join(root, 'public', 'beta3.js');
 const dataDirectory = process.env.ANNOTATION_DATA_DIR
   ? resolve(process.env.ANNOTATION_DATA_DIR)
   : join(root, '.data');
@@ -319,6 +320,7 @@ function validNote(input) {
 }
 
 const bookmarklet = "javascript:(()=>{const old=document.getElementById('devnotes-loader')||document.getElementById('live-interface-annotation-loader');if(old)old.remove();const s=document.createElement('script');s.id='devnotes-loader';s.src='http://127.0.0.1:4347/client.js';document.documentElement.append(s)})()";
+const beta3Bookmarklet = "javascript:(()=>{const old=document.getElementById('devnotes-beta3-loader');if(old)old.remove();const s=document.createElement('script');s.id='devnotes-beta3-loader';s.src='http://127.0.0.1:4347/beta3.js';document.documentElement.append(s)})()";
 
 function loaderPage() {
   return `<!doctype html>
@@ -335,7 +337,7 @@ function loaderPage() {
     p,li,label,input{font-size:clamp(.85rem,1.3vw,1rem);line-height:1.55}.lede{max-width:64ch}.notebook{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.72fr);gap:clamp(2rem,6vw,5rem);margin-top:clamp(3rem,8vw,7rem)}
     .surface{border-top:1px solid;padding-top:1rem}.surface-heading{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}.working-summary{margin:2rem 0 1rem;color:#555}.page-list{margin:0;padding:0;list-style:none;border-bottom:1px solid #ddd}.page-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.8rem 0;border-top:1px solid #ddd}.page-copy{min-width:0}.page-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem}.page-meta{display:block;margin-top:.2rem;color:#777;font-size:.68rem}.page-reset{border:0;padding:.25rem 0;text-decoration:underline;text-underline-offset:3px}.snapshot-form{display:grid;grid-template-columns:1fr auto;gap:.65rem;margin-top:1.25rem}.snapshot-form input{min-width:0;border:0;border-bottom:1px solid;padding:.7rem 0;background:transparent}.snapshot-form button{border:0;border-bottom:1px solid;padding:.7rem .1rem}
     .snapshot-list{display:grid;gap:0;margin:1.2rem 0 0;padding:0;list-style:none}.snapshot-item{display:grid;grid-template-columns:2.5rem 1fr auto;gap:.8rem;align-items:start;padding:.9rem 0;border-top:1px solid #ddd}.snapshot-item:last-child{border-bottom:1px solid #ddd}.snapshot-number,.snapshot-meta{color:#666;font-size:.72rem}.snapshot-label{display:block;margin-bottom:.25rem}.snapshot-item button{border:0;padding:.15rem 0;text-decoration:underline;text-underline-offset:3px}.empty{color:#777;font-size:.8rem}
-    .thumbnail-surface{grid-column:1/-1}.thumbnail-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1px;margin-top:1.2rem;background:#050505;border:1px solid #050505}.thumbnail-card{min-width:0;background:#fefefe}.thumbnail-image{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#eee;border-bottom:1px solid #050505}.thumbnail-copy{display:grid;grid-template-columns:auto 1fr auto;gap:.7rem;padding:.75rem}.thumbnail-number,.thumbnail-state{color:#666;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.thumbnail-note{min-width:0;margin:0;font-size:.78rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}a,button{border:1px solid #050505;border-radius:0;padding:.8rem 1rem;background:#fefefe;color:#050505;font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}a:hover,button:hover{background:#050505;color:#fefefe}button:disabled{opacity:.4;cursor:not-allowed}code{font:inherit;background:#eee;padding:.1em .25em}.status{min-height:1.5em;color:#555;font-size:.75rem}.action-notice{position:fixed;z-index:10;left:50%;bottom:max(1.25rem,env(safe-area-inset-bottom));width:min(36rem,calc(100vw - 2rem));transform:translateX(-50%);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.8rem .8rem .8rem 1rem;background:#fefefe;border:1px solid #050505;box-shadow:0 .6rem 1.5rem #05050518}.action-notice[hidden]{display:none}.action-message{margin:0;font-size:.78rem}.action-notice-buttons{display:flex;gap:1px;border:1px solid #050505}.action-notice-buttons[hidden]{display:none}.action-notice-buttons button{min-height:2.25rem;padding:.5rem .7rem;border:0;border-right:1px solid #050505}.action-notice-buttons button:last-child{border-right:0}.action-confirm{font-weight:700}.action-notice[data-tone="error"]{background:#050505;color:#fefefe}.action-notice[data-tone="error"] .action-notice-buttons{border-color:#fefefe}.action-notice[data-tone="error"] button{background:#050505;color:#fefefe;border-color:#fefefe}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}footer{padding-top:1rem;border-top:1px solid;font-size:.75rem;color:#555}
+    .wide-surface{grid-column:1/-1}.beta3-copy{max-width:68ch;margin:1rem 0 0;color:#555}.beta3-actions{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1rem}.thumbnail-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1px;margin-top:1.2rem;background:#050505;border:1px solid #050505}.thumbnail-card{min-width:0;background:#fefefe}.thumbnail-image{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#eee;border-bottom:1px solid #050505}.thumbnail-copy{display:grid;grid-template-columns:auto 1fr auto;gap:.7rem;padding:.75rem}.thumbnail-number,.thumbnail-state{color:#666;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.thumbnail-note{min-width:0;margin:0;font-size:.78rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}a,button{border:1px solid #050505;border-radius:0;padding:.8rem 1rem;background:#fefefe;color:#050505;font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}a:hover,button:hover{background:#050505;color:#fefefe}button:disabled{opacity:.4;cursor:not-allowed}code{font:inherit;background:#eee;padding:.1em .25em}.status{min-height:1.5em;color:#555;font-size:.75rem}.action-notice{position:fixed;z-index:10;left:50%;bottom:max(1.25rem,env(safe-area-inset-bottom));width:min(36rem,calc(100vw - 2rem));transform:translateX(-50%);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.8rem .8rem .8rem 1rem;background:#fefefe;border:1px solid #050505;box-shadow:0 .6rem 1.5rem #05050518}.action-notice[hidden]{display:none}.action-message{margin:0;font-size:.78rem}.action-notice-buttons{display:flex;gap:1px;border:1px solid #050505}.action-notice-buttons[hidden]{display:none}.action-notice-buttons button{min-height:2.25rem;padding:.5rem .7rem;border:0;border-right:1px solid #050505}.action-notice-buttons button:last-child{border-right:0}.action-confirm{font-weight:700}.action-notice[data-tone="error"]{background:#050505;color:#fefefe}.action-notice[data-tone="error"] .action-notice-buttons{border-color:#fefefe}.action-notice[data-tone="error"] button{background:#050505;color:#fefefe;border-color:#fefefe}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}footer{padding-top:1rem;border-top:1px solid;font-size:.75rem;color:#555}
     @media(max-width:760px){.notebook{grid-template-columns:1fr}.snapshot-form{grid-template-columns:1fr}.snapshot-form button{justify-self:start}.action-notice{grid-template-columns:1fr}.action-notice-buttons{justify-self:end}}
   </style>
 </head>
@@ -360,7 +362,12 @@ function loaderPage() {
         <div class="surface-heading"><h2 id="snapshots-title">Snapshots</h2><span id="snapshot-count" class="eyebrow">0</span></div>
         <ol id="snapshot-list" class="snapshot-list"></ol>
       </section>
-      <section class="surface thumbnail-surface" aria-labelledby="thumbnails-title">
+      <section class="surface wide-surface" aria-labelledby="beta3-title">
+        <div class="surface-heading"><h2 id="beta3-title">Beta 3 frozen canvas</h2><span class="eyebrow">Additive proof</span></div>
+        <p class="beta3-copy">Freeze the current viewport into a separate editable overlay. Move, resize and rewrite captured layers, compare Original with Experiment, then reset or exit without changing the live page.</p>
+        <div class="beta3-actions"><a href="${beta3Bookmarklet}">Load Beta 3</a><button type="button" id="copy-beta3">Copy Beta 3 loader</button></div>
+      </section>
+      <section class="surface wide-surface" aria-labelledby="thumbnails-title">
         <div class="surface-heading"><h2 id="thumbnails-title">Running thumbnails</h2><button id="refresh-thumbnails" type="button">Refresh captures</button></div>
         <p id="thumbnail-status" class="status" role="status"></p>
         <div id="thumbnail-list" class="thumbnail-list"></div>
@@ -433,6 +440,7 @@ function loaderPage() {
     form.addEventListener('submit',async(event)=>{event.preventDefault();status.textContent='Saving snapshot…';try{const result=await request('/api/snapshots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label.value})});label.value='';status.textContent='';await refresh();showActionNotice('Snapshot '+String(result.snapshot.number).padStart(2,'0')+' saved.');}catch(error){status.textContent='';showActionNotice('Could not save snapshot: '+error.message,{tone:'error',duration:0});}});
     thumbnailButton.addEventListener('click',async()=>{thumbnailButton.disabled=true;thumbnailStatus.textContent='Capturing each note…';try{const result=await request('/api/thumbnails/refresh',{method:'POST'});thumbnailStatus.textContent='';await refresh();showActionNotice(result.output||'Thumbnails refreshed.');}catch(error){thumbnailStatus.textContent='';showActionNotice('Could not refresh captures: '+error.message,{tone:'error',duration:0});}finally{thumbnailButton.disabled=false;}});
     document.querySelector('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(${JSON.stringify(bookmarklet)});showActionNotice('Loader copied.');}catch(error){showActionNotice('Could not copy loader: '+error.message,{tone:'error',duration:0});}});
+    document.querySelector('#copy-beta3').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(${JSON.stringify(beta3Bookmarklet)});showActionNotice('Beta 3 loader copied.');}catch(error){showActionNotice('Could not copy Beta 3 loader: '+error.message,{tone:'error',duration:0});}});
     actionCancel.addEventListener('click',()=>settleActionNotice(false));
     actionConfirm.addEventListener('click',()=>settleActionNotice(true));
     addEventListener('keydown',event=>{if(event.key==='Escape'&&pendingActionNotice){event.preventDefault();settleActionNotice(false);}});
@@ -468,6 +476,16 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'GET' && url.pathname === '/client.js') {
       const source = await readFile(clientPath, 'utf8');
+      response.writeHead(200, {
+        ...headers,
+        'Content-Type': 'text/javascript; charset=utf-8',
+      });
+      response.end(source);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/beta3.js') {
+      const source = await readFile(beta3Path, 'utf8');
       response.writeHead(200, {
         ...headers,
         'Content-Type': 'text/javascript; charset=utf-8',

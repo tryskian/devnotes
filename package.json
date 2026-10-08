@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
-    "check": "node --check server.mjs && node --check public/client.js",
+    "check": "node --check server.mjs && node --check public/client.js && node --check public/beta3.js",
     "thumbnails": "node scripts/capture-thumbnails.mjs",
+    "verify:beta3": "node scripts/verify-beta3.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "engines": {

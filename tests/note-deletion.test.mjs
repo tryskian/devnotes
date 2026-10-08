@@ -67,12 +67,21 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   const dashboardSource = await (await fetch(`${origin}/`)).text();
   assert.match(dashboardSource, /id="action-notice"/);
   assert.match(dashboardSource, /confirmActionNotice/);
+  assert.match(dashboardSource, /Load Beta 3/);
+  assert.match(dashboardSource, /Copy Beta 3 loader/);
   assert.doesNotMatch(dashboardSource, /if\(!confirm\(/);
 
   const clientSource = await (await fetch(`${origin}/client.js`)).text();
   assert.match(clientSource, /class="notice"/);
   assert.match(clientSource, /confirmNotice\(`Delete note/);
   assert.match(clientSource, /confirmNotice\(`Clear \$\{total\} note/);
+
+  const beta3Response = await fetch(`${origin}/beta3.js`);
+  assert.equal(beta3Response.status, 200);
+  assert.match(beta3Response.headers.get('content-type') || '', /text\/javascript/);
+  const beta3Source = await beta3Response.text();
+  assert.match(beta3Source, /Frozen canvas proof/);
+  assert.match(beta3Source, /sourceUnchanged: true/);
 
   const preflightResponse = await fetch(`${origin}/api/notes/test-note`, {
     method: 'OPTIONS',

@@ -17,5 +17,6 @@ a completed integration.
 ## Architecture
 
 - [Frozen layered snapshot](../architecture/FROZEN_LAYERED_SNAPSHOT.md): the
-  accepted 8 October concept for a reversible Figma-like page overlay. This is
-  documented but not implemented.
+  accepted 8 October concept for a reversible Figma-like page overlay.
+- [Beta 3](../BETA-3.md): the additive bounded proof of freeze, direct
+  manipulation, Original/Experiment comparison and complete revert.

@@ -36,6 +36,12 @@ The accepted next-direction concept is documented separately in
 The additive first proof is documented in [`docs/BETA-3.md`](docs/BETA-3.md).
 Beta 2 remains intact as the stable annotation notebook.
 
+On 8 October 2026 the successful Beta 3 proof established a separate product
+boundary and was extracted to the private
+[`tryskian/devsigner`](https://github.com/tryskian/devsigner) repository.
+DevNotes retains the incubation proof and provenance; new frozen-canvas product
+work belongs to Devsigner.
+
 ## Run
 
 ```sh

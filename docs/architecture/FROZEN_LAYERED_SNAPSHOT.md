@@ -1,7 +1,7 @@
 # Frozen layered snapshot
 
 Date: 8 October 2026
-Status: accepted product concept; bounded Beta 3 proof implemented
+Status: accepted concept; proof implemented and extracted to Devsigner
 
 ## Product kernel
 
@@ -389,6 +389,11 @@ and the underlying live `<main>` remained byte-identical.
 This proof does not implement saved ideas, accepted-target persistence,
 multi-viewport frames, implementation handoff or Binareyes verification. The
 current runtime boundary is documented in [`../BETA-3.md`](../BETA-3.md).
+
+The proof subsequently established a separate product boundary. Standalone
+development continues as **Devsigner** in
+[`tryskian/devsigner`](https://github.com/tryskian/devsigner). This document
+remains the accepted architecture and incubation record inside DevNotes.
 
 ## Open questions
 

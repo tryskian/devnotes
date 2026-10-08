@@ -1,7 +1,7 @@
 # DevNotes Beta 3
 
 Date: 8 October 2026
-Status: additive frozen-canvas proof
+Status: retained incubation proof; standalone continuation extracted
 
 ## Purpose
 
@@ -160,6 +160,13 @@ entry are not part of this proof.
 
 Beta 2 remains the stable annotation notebook. Beta 3 is an additive local
 proof of direct manipulation in a frozen layered overlay.
+
+The proof established a separate product boundary and was extracted as
+**Devsigner Beta 0** in the private
+[`tryskian/devsigner`](https://github.com/tryskian/devsigner) repository on
+8 October 2026. DevNotes keeps this implementation as origin evidence. Further
+frozen-canvas product work belongs to Devsigner rather than the DevNotes Beta 2
+roadmap.
 
 The broader accepted architecture remains in
 [`architecture/FROZEN_LAYERED_SNAPSHOT.md`](architecture/FROZEN_LAYERED_SNAPSHOT.md).

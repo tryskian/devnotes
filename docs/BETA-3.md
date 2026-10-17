@@ -22,6 +22,12 @@ remain intact.
 
 The Beta 3 loader freezes the current rendered viewport immediately.
 
+The loader is page-agnostic. On hosted HTTPS pages it preserves the current URL
+as the frozen copy's base, removes executable page scripts and edits only the
+isolated overlay. The verifier waits for rendered content rather than assuming
+the host reaches network-idle, so live hosted surfaces such as ChatGPT Sites can
+continue their own background activity.
+
 ## Implemented proof
 
 Beta 3 currently provides:
@@ -94,8 +100,9 @@ Run:
 npm run verify:beta3
 ```
 
-The verifier uses an explicitly identified Chromium executable and the live
-portfolio at `http://127.0.0.1:4331/`. It:
+The verifier uses an explicitly identified Chromium executable and defaults to
+the live portfolio at `http://127.0.0.1:4331/`. Set
+`DEVNOTES_BETA3_TARGET` to verify another local or hosted page. It:
 
 1. stores the live `<main>` source;
 2. loads Beta 3;

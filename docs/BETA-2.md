@@ -92,9 +92,23 @@ All working and snapshot state remains under `.data/` and is excluded from Git.
 The pre-Beta-2 copies of the live notes and preferences remain private beside
 the migrated files.
 
+## Site workspaces
+
+DevNotes can annotate local and hosted projects through the same loopback
+loader. The dashboard derives a workspace from each page origin and can scope
+pages, thumbnails and new snapshots to one site. A workspace restore changes
+only notes and derived receipts belonging to that origin. Existing ledger files
+remain intact; this is a scoped view and restore boundary rather than a data
+migration into separate stores.
+
+Interactive host pages may reserve Space or other printable keys. DevNotes
+stops note-editor keystrokes at its shadow boundary so writing remains ordinary
+without disabling the host page's shortcuts outside the note surface.
+
 ## Deliberate limitations
 
-- One working notebook in Beta 2; a multi-notebook switcher is future work.
+- One private ledger remains underneath the origin-scoped workspace selector;
+  independent storage roots and collaboration remain future work.
 - Snapshots are local and immutable, with no diff or merge surface yet.
 - Replies can be created but not edited or individually deleted yet.
 - No browser extension, source maps or formal MCP server.

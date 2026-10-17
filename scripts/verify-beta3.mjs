@@ -19,12 +19,72 @@ page.on('pageerror', (error) => errors.push(error.message));
 page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
 
 try {
-  await page.goto(target, { waitUntil: 'networkidle' });
+  await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+  await page.locator('main').waitFor({ state: 'visible', timeout: 30_000 });
+  // Hosted preview surfaces can report their own delayed network errors. The
+  // verification boundary begins after the target has rendered and before
+  // Beta 3 is injected, so only errors introduced by Beta 3 fail this run.
+  errors.length = 0;
   const before = await page.locator('main').evaluate((element) => element.outerHTML);
   const originalText = await page.locator('h1').innerText();
   await page.addScriptTag({ url: `${origin}/beta3.js` });
   await page.waitForFunction(() => window.__devNotesBeta3?.state().layers > 0);
   const frozenState = await page.evaluate(() => window.__devNotesBeta3.state());
+
+  const initialUi = await page.locator('#devnotes-beta3').evaluate((host) => {
+    const root = host.shadowRoot;
+    return {
+      toolbarHidden: root.querySelector('.topbar').hidden,
+      controlsHidden: root.querySelector('.inspector').hidden,
+      controlsBodyHidden: root.querySelector('.inspector-body').hidden,
+      emptyCopy: root.querySelector('.inspector-empty').textContent.trim(),
+      state: window.__devNotesBeta3.state().ui,
+    };
+  });
+  assert.equal(initialUi.toolbarHidden, false);
+  assert.equal(initialUi.controlsHidden, false);
+  assert.equal(initialUi.controlsBodyHidden, true);
+  assert.match(initialUi.emptyCopy, /Click a rendered element/);
+  assert.deepEqual(initialUi.state, { toolbarVisible: true, controlsVisible: true });
+
+  const toolbarBefore = await page.locator('#devnotes-beta3 .topbar').boundingBox();
+  const brandBox = await page.locator('#devnotes-beta3 .brand').boundingBox();
+  assert.ok(toolbarBefore && brandBox);
+  await page.mouse.move(brandBox.x + brandBox.width / 2, brandBox.y + brandBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(brandBox.x + brandBox.width / 2 - 120, brandBox.y + brandBox.height / 2 + 48, { steps: 6 });
+  await page.mouse.up();
+  const toolbarAfter = await page.locator('#devnotes-beta3 .topbar').boundingBox();
+  assert.ok(toolbarAfter);
+  assert.ok(Math.abs(toolbarAfter.x - toolbarBefore.x) > 20 || Math.abs(toolbarAfter.y - toolbarBefore.y) > 20);
+
+  const controlsBefore = await page.locator('#devnotes-beta3 .inspector').boundingBox();
+  const controlsHandle = await page.locator('#devnotes-beta3 .inspector-header').boundingBox();
+  assert.ok(controlsBefore && controlsHandle);
+  await page.mouse.move(controlsHandle.x + 40, controlsHandle.y + 18);
+  await page.mouse.down();
+  await page.mouse.move(controlsHandle.x - 90, controlsHandle.y + 75, { steps: 6 });
+  await page.mouse.up();
+  const controlsAfter = await page.locator('#devnotes-beta3 .inspector').boundingBox();
+  assert.ok(controlsAfter);
+  assert.ok(Math.abs(controlsAfter.x - controlsBefore.x) > 20 || Math.abs(controlsAfter.y - controlsBefore.y) > 20);
+
+  await page.locator('#devnotes-beta3 .toggle-controls').click();
+  assert.equal(await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.inspector').hidden), true);
+  assert.equal(await page.locator('#devnotes-beta3 .ui-reveal').textContent(), 'Show controls');
+  await page.locator('#devnotes-beta3 .ui-reveal').click();
+  await page.locator('#devnotes-beta3 .hide-toolbar').click();
+  assert.equal(await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.topbar').hidden), true);
+  assert.equal(await page.locator('#devnotes-beta3 .ui-reveal').textContent(), 'Show toolbar');
+  await page.locator('#devnotes-beta3 .ui-reveal').click();
+  await page.locator('#devnotes-beta3 .hide-ui').click();
+  assert.deepEqual(await page.locator('#devnotes-beta3').evaluate((host) => ({
+    toolbar: host.shadowRoot.querySelector('.topbar').hidden,
+    controls: host.shadowRoot.querySelector('.inspector').hidden,
+    reveal: host.shadowRoot.querySelector('.ui-reveal').textContent,
+  })), { toolbar: true, controls: true, reveal: 'Show UI' });
+  await page.locator('#devnotes-beta3 .ui-reveal').click();
+  await page.locator('#devnotes-beta3 .toggle-controls').click();
 
   const textRect = await page.locator('#devnotes-beta3').evaluate((host) => {
     const doc = host.shadowRoot.querySelector('.frame').contentDocument;
@@ -54,7 +114,7 @@ try {
   const movedHeading = await page.locator('#devnotes-beta3').evaluate((host) => {
     const heading = host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1');
     const rect = heading.getBoundingClientRect();
-    return { x: rect.x, width: rect.width };
+    return { x: rect.x, width: rect.width, translate: heading.style.translate };
   });
   assert.ok(Math.min(
     Math.abs(movedHeading.x - guide.left),
@@ -68,20 +128,33 @@ try {
   await page.mouse.down();
   await page.mouse.move(eastBox.x + eastBox.width / 2 + 90, eastBox.y + eastBox.height / 2, { steps: 8 });
   await page.mouse.up();
+  await page.locator('#devnotes-beta3 .ui-reveal').click();
 
   const sizeInput = page.locator('#devnotes-beta3 .font-size');
   const startingSize = Number.parseFloat(await sizeInput.inputValue());
-  await sizeInput.fill(String(startingSize + 8));
+  await page.locator('#devnotes-beta3 [data-size-delta="8"]').click();
+  assert.ok(Math.abs(Number.parseFloat(await sizeInput.inputValue()) - (startingSize + 8)) < 0.2);
   await page.locator('#devnotes-beta3 .text-transform').selectOption('uppercase');
+  await page.locator('#devnotes-beta3 .css-property').fill('color');
+  await page.locator('#devnotes-beta3 .css-read').click();
+  assert.notEqual((await page.locator('#devnotes-beta3 .css-value').inputValue()).trim(), '');
+  await page.locator('#devnotes-beta3 .css-property').fill('opacity');
+  await page.locator('#devnotes-beta3 .css-value').fill('0.92');
+  await page.locator('#devnotes-beta3 .apply-css').click();
+  assert.equal(await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1').style.opacity), '0.92');
+  await page.locator('#devnotes-beta3 [data-css-remove="opacity"]').click();
+  assert.equal(await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1').style.opacity), '');
   await page.locator('#devnotes-beta3 .edit-copy').click();
   await page.locator('#devnotes-beta3').evaluate((host) => {
     const frame = host.shadowRoot.querySelector('.frame');
     const doc = frame.contentDocument;
-    const textNode = [...doc.querySelector('h1').querySelectorAll('span')]
-      .find((element) => element.textContent.includes('research')).firstChild;
+    const walker = doc.createTreeWalker(doc.querySelector('h1'), 4);
+    let textNode = walker.nextNode();
+    while (textNode && textNode.textContent.trim().length < 3) textNode = walker.nextNode();
+    if (!textNode) throw new Error('No selectable heading text was captured.');
     const range = doc.createRange();
     range.setStart(textNode, 0);
-    range.setEnd(textNode, 'research'.length);
+    range.setEnd(textNode, Math.min(8, textNode.textContent.length));
     const selection = frame.contentWindow.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
@@ -89,8 +162,8 @@ try {
   });
   await page.locator('#devnotes-beta3 .format-bold').click();
   const inlineFormatting = await page.locator('#devnotes-beta3').evaluate((host) => host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1').innerHTML);
-  assert.match(inlineFormatting, /<(b|strong)[^>]*>research<\/(b|strong)>/i);
-  assert.doesNotMatch(inlineFormatting, /^<(b|strong)[^>]*>/i);
+  assert.match(inlineFormatting, /<(b|strong)[^>]*>[^<]+<\/(b|strong)>/i);
+  assert.match(inlineFormatting, /<\/(b|strong)>\s*\S/i);
   await page.locator('#devnotes-beta3 .edit-copy').click();
   await page.locator('#devnotes-beta3 .edit-copy').click();
   await page.keyboard.type('Beta 3 proof headline');
@@ -99,16 +172,18 @@ try {
   const experiment = await page.locator('#devnotes-beta3').evaluate((host) => {
     const heading = host.shadowRoot.querySelector('.frame').contentDocument.querySelector('h1');
     const rect = heading.getBoundingClientRect();
-    return { x: rect.x, width: rect.width, text: heading.textContent, state: window.__devNotesBeta3.state() };
+    return { x: rect.x, width: rect.width, translate: heading.style.translate, text: heading.textContent, state: window.__devNotesBeta3.state() };
   });
   assert.equal(experiment.text, 'Beta 3 proof headline');
-  assert.ok(Math.abs(experiment.x - movedHeading.x) < 1);
-  assert.ok(experiment.width > headingBefore.width + 70);
+  assert.equal(experiment.translate, movedHeading.translate);
+  assert.ok(experiment.width > movedHeading.width + 70);
   assert.deepEqual(experiment.state.history.map((operation) => operation.type), [
     'move-layer',
     'resize-layer',
     'format-text',
     'format-text',
+    'set-css-property',
+    'remove-css-property',
     'format-inline-text',
     'edit-copy',
   ]);
@@ -135,7 +210,7 @@ try {
   console.log(JSON.stringify({
     target,
     layers: frozenState.layers,
-    operations: ['move-layer', 'resize-layer', 'format-text', 'format-inline-text', 'edit-copy'],
+    operations: ['move-layer', 'resize-layer', 'format-text', 'set-css-property', 'remove-css-property', 'format-inline-text', 'edit-copy'],
     originalText,
     sourceUnchanged: after === before,
     errors,

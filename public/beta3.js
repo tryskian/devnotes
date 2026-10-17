@@ -22,7 +22,7 @@
 
   const frozenStyle = source.ownerDocument.createElement('style');
   frozenStyle.textContent = `
-    *,*::before,*::after{animation-play-state:paused!important;transition:none!important;scroll-behavior:auto!important}
+    *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
     [data-devnotes-beta3-layer]{cursor:default!important}
     [data-devnotes-beta3-hover]{outline:1px dashed #3264ff!important;outline-offset:2px!important}
     [data-devnotes-beta3-selected]{outline:2px solid #3264ff!important;outline-offset:2px!important}
@@ -46,40 +46,56 @@
       button:focus-visible,input:focus-visible{outline:2px solid #3264ff;outline-offset:3px}
       .stage{position:fixed;inset:0;overflow:hidden;background:#d9d9d6}
       .frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fefefe}
-      .topbar{position:fixed;z-index:20;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;max-width:calc(100vw - 24px);border:1px solid #050505;background:#fefefe;box-shadow:0 5px 18px #05050518}
-      .brand{display:grid;align-content:center;min-width:max-content;padding:0 13px;border-right:1px solid #050505;font:700 11px/1.15 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.07em;text-transform:uppercase}.brand small{display:block;margin-top:3px;color:#777;font-size:8px;font-weight:500}
-      .topbar-group{display:flex;min-width:0;border-right:1px solid #050505}.topbar-group:last-child{border-right:0}.layer-count{display:grid;min-width:62px;place-items:center;padding:0 10px;color:#666;font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
-      .inspector{position:fixed;z-index:18;right:14px;top:70px;width:min(336px,calc(100vw - 28px));max-height:calc(100svh - 84px);overflow:auto;padding:13px 14px 14px;border:1px solid #050505;background:#fefefef5;box-shadow:0 8px 22px #05050516;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .inspector[hidden]{display:none}.inspector-header{display:flex;align-items:start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #bbb}.layer-name{min-width:0;margin:0;font-size:12px;line-height:1.35;word-break:break-word}.source-name{display:block;margin-top:4px;color:#777;font-size:9px;font-weight:500}.geometry{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:11px 0;background:#bbb;border:1px solid #bbb}.metric{padding:7px 6px;background:#fefefe}.metric span{display:block;color:#777;font-size:8px;text-transform:uppercase}.metric output{display:block;margin-top:3px;font-size:10px}.text-controls{margin:0 0 11px;padding:10px 0;border-top:1px solid #bbb;border-bottom:1px solid #bbb}.text-controls[hidden]{display:none}.text-controls-title{display:block;margin-bottom:8px;color:#666;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.text-measures{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.text-field{display:grid;gap:4px;color:#777;font-size:8px;text-transform:uppercase}.text-field input,.text-field select{width:100%;min-width:0;height:30px;padding:0 6px;border:1px solid #aaa;border-radius:0;background:#fefefe;color:#050505}.text-selects{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.text-format-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:7px;border:1px solid #050505}.text-format-actions button{min-height:32px;padding:0 5px}.inspector-actions{display:flex;border:1px solid #050505}.inspector-actions button{flex:1;padding:0 7px}.inspector-note{margin:10px 0 0;color:#666;font-size:9px;line-height:1.45}
-      .selection{position:fixed;z-index:12;display:none;border:2px solid #3264ff;pointer-events:none}.selection.visible{display:block}.selection-label{position:absolute;left:-2px;top:-22px;max-width:260px;padding:4px 6px;background:#3264ff;color:#fff;font:600 9px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:move}.handle{position:absolute;width:12px;height:12px;border:2px solid #3264ff;background:#fefefe;pointer-events:auto}.handle-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.handle-s{bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}.handle-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+      .topbar{position:fixed;z-index:23;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;width:max-content;max-width:calc(100vw - 24px);overflow-x:auto;border:1px solid #050505;background:#fefefe;box-shadow:0 5px 18px #05050518}
+      .topbar[hidden]{display:none}
+      .brand{display:grid;align-content:center;min-width:max-content;padding:0 13px;border-right:1px solid #050505;font:700 11px/1.15 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.07em;text-transform:uppercase;cursor:move;user-select:none}.brand small{display:block;margin-top:3px;color:#777;font-size:8px;font-weight:500}
+      .topbar-group{display:flex;flex:0 0 auto;min-width:0;border-right:1px solid #050505}.topbar-group:last-child{border-right:0}.layer-count{display:grid;flex:0 0 auto;min-width:62px;place-items:center;padding:0 10px;color:#666;font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
+      .inspector{position:fixed;z-index:22;right:14px;top:70px;width:min(356px,calc(100vw - 28px));max-height:calc(100svh - 84px);overflow:auto;padding:13px 14px 14px;border:1px solid #050505;background:#fefefef5;box-shadow:0 8px 22px #05050516;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .inspector[hidden],.inspector-body[hidden],.inspector-empty[hidden]{display:none}.inspector-header{display:flex;align-items:start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #bbb;cursor:move;user-select:none}.inspector-header button{min-height:28px;padding:0 7px;border:1px solid #888;font-size:8px;cursor:pointer}.layer-name{min-width:0;margin:0;font-size:12px;line-height:1.35;word-break:break-word}.source-name{display:block;margin-top:4px;color:#777;font-size:9px;font-weight:500}.inspector-empty{margin:12px 0 0;color:#666;font-size:10px;line-height:1.5}.geometry{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:11px 0;background:#bbb;border:1px solid #bbb}.metric{padding:7px 6px;background:#fefefe}.metric span{display:block;color:#777;font-size:8px;text-transform:uppercase}.metric output{display:block;margin-top:3px;font-size:10px}.text-controls,.css-controls{margin:0 0 11px;padding:10px 0;border-top:1px solid #bbb;border-bottom:1px solid #bbb}.text-controls[hidden],.css-controls[hidden]{display:none}.text-controls-title,.css-controls-title{display:block;margin-bottom:8px;color:#666;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.text-measures{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.text-field{display:grid;gap:4px;color:#777;font-size:8px;text-transform:uppercase}.text-field input,.text-field select,.css-property,.css-value{width:100%;min-width:0;height:30px;padding:0 6px;border:1px solid #aaa;border-radius:0;background:#fefefe;color:#050505}.text-size-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:7px;border:1px solid #050505}.text-size-actions button{min-height:30px;padding:0 5px}.text-selects{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.text-format-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:7px;border:1px solid #050505}.text-format-actions button{min-height:32px;padding:0 5px}.css-form{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr) auto;gap:5px}.css-form button{min-height:30px;padding:0 8px;border:1px solid #050505}.css-read{display:block;width:100%;margin-top:6px;min-height:30px;border:1px solid #050505}.css-error{min-height:1.4em;margin:6px 0 0;color:#b00020;font-size:9px;line-height:1.4}.css-error:empty{display:none}.css-declarations{display:grid;gap:1px;margin-top:8px;background:#bbb;border:1px solid #bbb}.css-declaration{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;padding:6px;background:#fefefe}.css-declaration code{min-width:0;overflow-wrap:anywhere;font:500 9px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.css-declaration button{min-height:25px;padding:0 6px;border:1px solid #888;font-size:8px}.css-declarations:empty{display:none}.inspector-actions{display:flex;border:1px solid #050505}.inspector-actions button{flex:1;padding:0 7px}.inspector-note{margin:10px 0 0;color:#666;font-size:9px;line-height:1.45}
+      .selection{position:fixed;z-index:19;display:none;border:2px solid #3264ff;pointer-events:none}.selection.visible{display:block}.selection-label{position:absolute;left:-2px;top:-22px;max-width:260px;padding:4px 6px;background:#3264ff;color:#fff;font:600 9px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto;cursor:move}.handle{position:absolute;width:12px;height:12px;border:2px solid #3264ff;background:#fefefe;pointer-events:auto}.handle-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.handle-s{bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}.handle-se{right:-7px;bottom:-7px;cursor:nwse-resize}
       .guide{position:fixed;z-index:11;background:#e5008a;pointer-events:none}.guide[hidden]{display:none}.guide-v{top:0;bottom:0;width:1px}.guide-h{left:0;right:0;height:1px}
       .notice{position:fixed;z-index:30;left:50%;bottom:14px;transform:translateX(-50%);width:min(520px,calc(100vw - 28px));padding:10px 13px;border:1px solid #050505;background:#fefefe;box-shadow:0 7px 22px #05050518;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.notice[hidden]{display:none}
+      .ui-reveal{position:fixed;z-index:31;top:12px;left:12px;min-height:34px;border:1px solid #050505;background:#fefefe;box-shadow:0 5px 18px #05050518}.ui-reveal[hidden]{display:none}
       .editing-original .selection{opacity:.45}.editing-original .inspector{opacity:.7}
       @media(max-width:760px){.topbar{left:10px;right:10px;transform:none;overflow-x:auto}.brand{display:none}.layer-count{display:none}.inspector{top:auto;bottom:62px;left:10px;right:10px;width:auto}.notice{bottom:10px}}
     </style>
     <div class="stage">
       <iframe class="frame" title="Frozen page experiment" sandbox="allow-same-origin"></iframe>
       <div class="guide guide-v" hidden></div><div class="guide guide-h" hidden></div>
-      <div class="selection" aria-hidden="true"><span class="selection-label"></span><span class="handle handle-e" data-direction="e"></span><span class="handle handle-s" data-direction="s"></span><span class="handle handle-se" data-direction="se"></span></div>
     </div>
+    <div class="selection" aria-hidden="true"><span class="selection-label"></span><span class="handle handle-e" data-direction="e"></span><span class="handle handle-s" data-direction="s"></span><span class="handle handle-se" data-direction="se"></span></div>
     <header class="topbar" aria-label="Beta 3 frozen canvas controls">
       <div class="brand">DevNotes Beta 3<small>Frozen canvas proof</small></div>
       <div class="topbar-group"><button class="view-original" type="button" aria-pressed="false">Original</button><button class="view-experiment" type="button" aria-pressed="true">Experiment</button></div>
       <div class="topbar-group"><button class="undo" type="button" disabled>Undo</button><button class="redo" type="button" disabled>Redo</button><button class="reset" type="button" disabled>Reset</button></div>
       <span class="layer-count">Freezing…</span>
+      <div class="topbar-group"><button class="toggle-controls" type="button">Hide controls</button><button class="hide-toolbar" type="button">Hide toolbar</button><button class="hide-ui" type="button">Hide both</button></div>
       <div class="topbar-group"><button class="exit" type="button">Exit</button></div>
     </header>
-    <aside class="inspector" hidden aria-label="Selected layer">
-      <h2 class="layer-name"></h2>
-      <div class="geometry"><div class="metric"><span>X</span><output data-metric="x">0</output></div><div class="metric"><span>Y</span><output data-metric="y">0</output></div><div class="metric"><span>W</span><output data-metric="width">0</output></div><div class="metric"><span>H</span><output data-metric="height">0</output></div></div>
-      <section class="text-controls" hidden aria-label="Text formatting">
-        <strong class="text-controls-title">Text formatting</strong>
-        <div class="text-measures"><label class="text-field">Size<input class="font-size" type="number" min="6" max="400" step="1"></label><label class="text-field">Leading<input class="line-height" type="number" min="6" max="600" step="1"></label><label class="text-field">Tracking<input class="letter-spacing" type="number" min="-20" max="100" step="0.1"></label></div>
-        <div class="text-selects"><label class="text-field">Case<select class="text-transform"><option value="none">None</option><option value="uppercase">Uppercase</option><option value="lowercase">Lowercase</option><option value="capitalize">Capitalize</option></select></label><label class="text-field">Align<select class="text-align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option><option value="justify">Justify</option></select></label></div>
-        <div class="text-format-actions"><button class="format-bold" type="button" aria-pressed="false">Bold</button><button class="format-italic" type="button" aria-pressed="false">Italic</button><button class="format-underline" type="button" aria-pressed="false">Underline</button><button class="format-strike" type="button" aria-pressed="false">Strike</button></div>
-      </section>
-      <div class="inspector-actions"><button class="edit-copy" type="button">Edit copy</button><button class="select-parent" type="button">Parent</button><button class="revert-layer" type="button">Revert layer</button></div>
-      <p class="inspector-note">Drag the object or its blue label to move it. Use the handles to resize. Double-click simple text to edit it.</p>
+    <button class="ui-reveal" type="button" hidden>Show UI</button>
+    <aside class="inspector" data-empty="true" aria-label="Selected layer controls">
+      <div class="inspector-header"><h2 class="layer-name">Select a layer</h2><button class="hide-controls" type="button">Hide</button></div>
+      <p class="inspector-empty">Click a rendered element to inspect geometry, typography and inline CSS.</p>
+      <div class="inspector-body" hidden>
+        <div class="geometry"><div class="metric"><span>X</span><output data-metric="x">0</output></div><div class="metric"><span>Y</span><output data-metric="y">0</output></div><div class="metric"><span>W</span><output data-metric="width">0</output></div><div class="metric"><span>H</span><output data-metric="height">0</output></div></div>
+        <section class="text-controls" hidden aria-label="Text formatting">
+          <strong class="text-controls-title">Text formatting</strong>
+          <div class="text-measures"><label class="text-field">Size<input class="font-size" type="number" min="1" max="1200" step="0.1"></label><label class="text-field">Leading<input class="line-height" type="number" min="1" max="1600" step="0.1"></label><label class="text-field">Tracking<input class="letter-spacing" type="number" min="-100" max="300" step="0.1"></label></div>
+          <div class="text-size-actions" aria-label="Font size adjustments"><button type="button" data-size-delta="-8">−8</button><button type="button" data-size-delta="-2">−2</button><button type="button" data-size-delta="2">+2</button><button type="button" data-size-delta="8">+8</button></div>
+          <div class="text-selects"><label class="text-field">Case<select class="text-transform"><option value="none">None</option><option value="uppercase">Uppercase</option><option value="lowercase">Lowercase</option><option value="capitalize">Capitalize</option></select></label><label class="text-field">Align<select class="text-align"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option><option value="justify">Justify</option></select></label></div>
+          <div class="text-format-actions"><button class="format-bold" type="button" aria-pressed="false">Bold</button><button class="format-italic" type="button" aria-pressed="false">Italic</button><button class="format-underline" type="button" aria-pressed="false">Underline</button><button class="format-strike" type="button" aria-pressed="false">Strike</button></div>
+        </section>
+        <section class="css-controls" aria-label="Inline CSS">
+          <strong class="css-controls-title">Inline CSS</strong>
+          <form class="css-form"><input class="css-property" list="devnotes-beta3-css-properties" autocomplete="off" placeholder="property" aria-label="CSS property"><input class="css-value" autocomplete="off" placeholder="value" aria-label="CSS value"><button class="apply-css" type="submit">Apply</button></form>
+          <button class="css-read" type="button">Read computed value</button>
+          <p class="css-error" role="alert"></p>
+          <div class="css-declarations" aria-label="Inline declarations"></div>
+          <datalist id="devnotes-beta3-css-properties"><option value="color"></option><option value="background-color"></option><option value="font-family"></option><option value="font-size"></option><option value="font-weight"></option><option value="line-height"></option><option value="letter-spacing"></option><option value="text-align"></option><option value="width"></option><option value="height"></option><option value="max-width"></option><option value="margin"></option><option value="padding"></option><option value="gap"></option><option value="display"></option><option value="position"></option><option value="inset"></option><option value="translate"></option><option value="rotate"></option><option value="scale"></option><option value="opacity"></option><option value="border"></option><option value="border-radius"></option><option value="box-shadow"></option><option value="overflow"></option><option value="z-index"></option></datalist>
+        </section>
+        <div class="inspector-actions"><button class="edit-copy" type="button">Edit copy</button><button class="select-parent" type="button">Parent</button><button class="revert-layer" type="button">Revert layer</button></div>
+        <p class="inspector-note">Drag the object or its blue label to move it. Use the handles to resize. Double-click simple text to edit it.</p>
+      </div>
     </aside>
     <p class="notice" role="status">Freezing the current viewport…</p>
   `;
@@ -89,7 +105,10 @@
   const selectionLabel = root.querySelector('.selection-label');
   const verticalGuide = root.querySelector('.guide-v');
   const horizontalGuide = root.querySelector('.guide-h');
+  const topbar = root.querySelector('.topbar');
   const inspector = root.querySelector('.inspector');
+  const inspectorBody = root.querySelector('.inspector-body');
+  const inspectorEmpty = root.querySelector('.inspector-empty');
   const layerName = root.querySelector('.layer-name');
   const layerCount = root.querySelector('.layer-count');
   const notice = root.querySelector('.notice');
@@ -111,6 +130,19 @@
   const italicButton = root.querySelector('.format-italic');
   const underlineButton = root.querySelector('.format-underline');
   const strikeButton = root.querySelector('.format-strike');
+  const sizeButtons = [...root.querySelectorAll('[data-size-delta]')];
+  const toggleControlsButton = root.querySelector('.toggle-controls');
+  const hideToolbarButton = root.querySelector('.hide-toolbar');
+  const hideUiButton = root.querySelector('.hide-ui');
+  const hideControlsButton = root.querySelector('.hide-controls');
+  const uiRevealButton = root.querySelector('.ui-reveal');
+  const cssForm = root.querySelector('.css-form');
+  const cssPropertyInput = root.querySelector('.css-property');
+  const cssValueInput = root.querySelector('.css-value');
+  const applyCssButton = root.querySelector('.apply-css');
+  const cssReadButton = root.querySelector('.css-read');
+  const cssError = root.querySelector('.css-error');
+  const cssDeclarations = root.querySelector('.css-declarations');
 
   const originalPageScroll = { x: scrollX, y: scrollY };
   const layers = new Map();
@@ -125,6 +157,8 @@
   let noticeTimer = null;
   let activeTextEdit = null;
   let savedTextRange = null;
+  let toolbarVisible = true;
+  let controlsVisible = true;
   const textDrafts = new Map();
 
   const textBlockSelector = 'h1,h2,h3,h4,h5,h6,p,a,button,label,summary,figcaption,dt,dd,blockquote,pre,code,li';
@@ -225,6 +259,163 @@
     return Number.isFinite(number) ? number : fallback;
   }
 
+  function updateUiVisibility() {
+    topbar.hidden = !toolbarVisible;
+    inspector.hidden = !controlsVisible;
+    toggleControlsButton.textContent = controlsVisible ? 'Hide controls' : 'Show controls';
+    toggleControlsButton.setAttribute('aria-pressed', String(controlsVisible));
+    const anyHidden = !toolbarVisible || !controlsVisible;
+    uiRevealButton.hidden = !anyHidden;
+    uiRevealButton.textContent = !toolbarVisible && !controlsVisible
+      ? 'Show UI'
+      : !toolbarVisible
+        ? 'Show toolbar'
+        : 'Show controls';
+  }
+
+  function setUiVisibility({toolbar = toolbarVisible, controls = controlsVisible} = {}) {
+    toolbarVisible = toolbar;
+    controlsVisible = controls;
+    updateUiVisibility();
+  }
+
+  function clampFloatingPanel(panel) {
+    if (panel.hidden || !panel.style.left || !panel.style.top) return;
+    const rect = panel.getBoundingClientRect();
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, innerWidth - rect.width - 8));
+    const top = Math.min(Math.max(8, rect.top), Math.max(8, innerHeight - rect.height - 8));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  }
+
+  function makeFloatingPanelDraggable(panel, handle) {
+    let panelDrag = null;
+
+    function movePanel(event) {
+      if (!panelDrag || event.pointerId !== panelDrag.pointerId) return;
+      const width = panel.offsetWidth;
+      const height = panel.offsetHeight;
+      const left = Math.min(
+        Math.max(8, event.clientX - panelDrag.offsetX),
+        Math.max(8, innerWidth - width - 8),
+      );
+      const top = Math.min(
+        Math.max(8, event.clientY - panelDrag.offsetY),
+        Math.max(8, innerHeight - height - 8),
+      );
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+    }
+
+    function finishPanelDrag(event) {
+      if (!panelDrag || event.pointerId !== panelDrag.pointerId) return;
+      panelDrag = null;
+      if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    }
+
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.target.closest?.('button,input,select,textarea,option')) return;
+      const rect = panel.getBoundingClientRect();
+      panel.style.left = `${rect.left}px`;
+      panel.style.top = `${rect.top}px`;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.transform = 'none';
+      panelDrag = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
+      handle.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+    handle.addEventListener('pointermove', movePanel);
+    handle.addEventListener('pointerup', finishPanelDrag);
+    handle.addEventListener('pointercancel', finishPanelDrag);
+  }
+
+  function updateCssDeclarations() {
+    cssDeclarations.replaceChildren();
+    if (!selected) return;
+    for (let index = 0; index < selected.style.length; index += 1) {
+      const property = selected.style.item(index);
+      const row = document.createElement('div');
+      row.className = 'css-declaration';
+      const declaration = document.createElement('code');
+      const priority = selected.style.getPropertyPriority(property);
+      declaration.textContent = `${property}: ${selected.style.getPropertyValue(property)}${priority ? ' !important' : ''};`;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.dataset.cssRemove = property;
+      remove.textContent = 'Remove';
+      remove.disabled = viewMode !== 'experiment';
+      row.append(declaration, remove);
+      cssDeclarations.append(row);
+    }
+  }
+
+  function cssPropertyName() {
+    return cssPropertyInput.value.trim().toLowerCase();
+  }
+
+  function readComputedCssValue() {
+    cssError.textContent = '';
+    if (!selected) {
+      cssError.textContent = 'Select a layer first.';
+      return;
+    }
+    const property = cssPropertyName();
+    if (!property) {
+      cssError.textContent = 'Enter a CSS property.';
+      return;
+    }
+    const value = frame.contentWindow.getComputedStyle(selected).getPropertyValue(property).trim();
+    if (!value) {
+      cssError.textContent = `No computed value found for ${property}.`;
+      return;
+    }
+    cssValueInput.value = value;
+  }
+
+  function applyCssDeclaration(event) {
+    event?.preventDefault();
+    cssError.textContent = '';
+    if (!selected || viewMode !== 'experiment') {
+      cssError.textContent = 'Select a layer in Experiment first.';
+      return;
+    }
+    const property = cssPropertyName();
+    const value = cssValueInput.value.trim();
+    if (!property || !value) {
+      cssError.textContent = 'Enter both a property and value.';
+      return;
+    }
+    const validName = property.startsWith('--') || /^-?[a-z][a-z0-9-]*$/.test(property);
+    const validValue = property.startsWith('--') || frame.contentWindow.CSS.supports(property, value);
+    if (!validName || !validValue) {
+      cssError.textContent = `Invalid declaration: ${property}: ${value}`;
+      return;
+    }
+    finishTextEdit();
+    const before = snapshotState(selected);
+    selected.style.setProperty(property, value);
+    commitOperation(selected, before, 'set-css-property');
+    cssPropertyInput.value = property;
+    cssValueInput.value = selected.style.getPropertyValue(property);
+    updateSelection();
+    showNotice(`${property} applied to the selected layer.`);
+  }
+
+  function removeCssDeclaration(property) {
+    if (!selected || viewMode !== 'experiment' || !property) return;
+    finishTextEdit();
+    const before = snapshotState(selected);
+    selected.style.removeProperty(property);
+    commitOperation(selected, before, 'remove-css-property');
+    updateSelection();
+    showNotice(`${property} removed from the selected layer.`);
+  }
+
   function updateTextControls() {
     const visible = Boolean(selected && textLayer(selected));
     textControls.hidden = !visible;
@@ -258,9 +449,12 @@
     editCopyButton.textContent = activeTextEdit?.element === selected ? 'Done text' : 'Edit text';
     parentButton.disabled = !selected || !meaningfulElement(selected.parentElement);
     revertLayerButton.disabled = !editable || !selected || !history.some((operation, index) => index < historyCursor && operation.layerId === selected.dataset.devnotesBeta3Layer);
-    for (const control of [fontSizeInput, lineHeightInput, letterSpacingInput, textTransformSelect, textAlignSelect, boldButton, italicButton, underlineButton, strikeButton]) control.disabled = !editable || !selected || !textLayer(selected);
+    for (const control of [fontSizeInput, lineHeightInput, letterSpacingInput, textTransformSelect, textAlignSelect, boldButton, italicButton, underlineButton, strikeButton, ...sizeButtons]) control.disabled = !editable || !selected || !textLayer(selected);
+    for (const control of [cssPropertyInput, cssValueInput, cssReadButton, applyCssButton]) control.disabled = !editable || !selected;
     host.classList.toggle('editing-original', !editable);
     updateTextControls();
+    updateCssDeclarations();
+    updateUiVisibility();
   }
 
   function metric(name, value) {
@@ -270,8 +464,12 @@
   function updateSelection() {
     if (!selected || !selected.isConnected) {
       selectionBox.classList.remove('visible');
-      inspector.hidden = true;
+      inspector.dataset.empty = 'true';
+      inspectorBody.hidden = true;
+      inspectorEmpty.hidden = false;
+      layerName.textContent = 'Select a layer';
       textControls.hidden = true;
+      updateControls();
       return;
     }
     const rect = selected.getBoundingClientRect();
@@ -291,7 +489,9 @@
     metric('y', rect.top);
     metric('width', rect.width);
     metric('height', rect.height);
-    inspector.hidden = false;
+    inspector.dataset.empty = 'false';
+    inspectorBody.hidden = false;
+    inspectorEmpty.hidden = true;
     updateControls();
   }
 
@@ -400,8 +600,12 @@
       height: rect.height,
       before: snapshotState(selected),
       element: selected,
+      captureTarget: event.currentTarget,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    addEventListener('pointermove', resizePointer, true);
+    addEventListener('pointerup', finishResize, true);
+    addEventListener('pointercancel', finishResize, true);
     event.preventDefault();
     event.stopPropagation();
   }
@@ -424,7 +628,10 @@
 
   function finishResize(event) {
     if (!resize || resize.pointerId !== event.pointerId) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    resize.captureTarget.releasePointerCapture?.(event.pointerId);
+    removeEventListener('pointermove', resizePointer, true);
+    removeEventListener('pointerup', finishResize, true);
+    removeEventListener('pointercancel', finishResize, true);
     commitOperation(resize.element, resize.before, 'resize-layer');
     resize = null;
     updateSelection();
@@ -654,7 +861,7 @@
     frameDocument.addEventListener('scroll', updateSelection, { passive: true });
     frame.contentWindow.addEventListener('resize', updateSelection);
     showNotice(`${layers.size} rendered layers frozen. Select one to begin.`, 4200);
-    updateControls();
+    updateSelection();
   }
 
   root.querySelectorAll('.handle').forEach((handle) => {
@@ -684,10 +891,33 @@
 
   textTransformSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textTransform = textTransformSelect.value; }));
   textAlignSelect.addEventListener('change', () => applyTextStyle((element) => { element.style.textAlign = textAlignSelect.value; }));
+  sizeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const delta = Number(button.dataset.sizeDelta);
+      applyTextStyle((element, style) => {
+        element.style.fontSize = `${Math.max(1, numericStyle(style.fontSize, 16) + delta)}px`;
+      });
+    });
+  });
   boldButton.addEventListener('click', () => { if (!applyInlineCommand('bold')) applyTextStyle((element, style) => { element.style.fontWeight = numericStyle(style.fontWeight, 400) >= 600 ? '400' : '700'; }); });
   italicButton.addEventListener('click', () => { if (!applyInlineCommand('italic')) applyTextStyle((element, style) => { element.style.fontStyle = style.fontStyle === 'italic' || style.fontStyle === 'oblique' ? 'normal' : 'italic'; }); });
   underlineButton.addEventListener('click', () => toggleDecoration('underline'));
   strikeButton.addEventListener('click', () => toggleDecoration('line-through'));
+
+  cssForm.addEventListener('submit', applyCssDeclaration);
+  cssReadButton.addEventListener('click', readComputedCssValue);
+  cssDeclarations.addEventListener('click', (event) => {
+    const remove = event.target.closest?.('[data-css-remove]');
+    if (remove) removeCssDeclaration(remove.dataset.cssRemove);
+  });
+
+  toggleControlsButton.addEventListener('click', () => setUiVisibility({ controls: !controlsVisible }));
+  hideToolbarButton.addEventListener('click', () => setUiVisibility({ toolbar: false }));
+  hideUiButton.addEventListener('click', () => setUiVisibility({ toolbar: false, controls: false }));
+  hideControlsButton.addEventListener('click', () => setUiVisibility({ controls: false }));
+  uiRevealButton.addEventListener('click', () => setUiVisibility({ toolbar: true, controls: true }));
+  makeFloatingPanelDraggable(topbar, root.querySelector('.brand'));
+  makeFloatingPanelDraggable(inspector, root.querySelector('.inspector-header'));
 
   originalButton.addEventListener('click', () => setViewMode('original'));
   experimentButton.addEventListener('click', () => setViewMode('experiment'));
@@ -698,7 +928,11 @@
   parentButton.addEventListener('click', () => { finishTextEdit();if (selected?.parentElement && meaningfulElement(selected.parentElement)) selectLayer(selected.parentElement); });
   revertLayerButton.addEventListener('click', revertSelectedLayer);
   root.querySelector('.exit').addEventListener('click', exitBeta3);
-  addEventListener('resize', updateSelection);
+  addEventListener('resize', () => {
+    clampFloatingPanel(topbar);
+    clampFloatingPanel(inspector);
+    updateSelection();
+  });
   addEventListener('keydown', (event) => {
     if (!host.isConnected) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
@@ -725,6 +959,7 @@
       historyCursor,
       viewMode,
       selectedLayer: selected?.dataset.devnotesBeta3Layer || null,
+      ui: { toolbarVisible, controlsVisible },
       sourceUrl: location.href,
       sourceUnchanged: true,
     }),

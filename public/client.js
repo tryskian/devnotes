@@ -120,6 +120,7 @@
   let pendingNotice = null;
 
   const pageUrl = () => `${location.origin}${location.pathname}${location.search}`;
+  const workspace = () => location.origin;
   const eventPoint = (event) => ({ x: Math.round((event.clientX + scrollX) * 10) / 10, y: Math.round((event.clientY + scrollY) * 10) / 10 });
   const viewportPoint = (point) => ({ x: point.x - scrollX, y: point.y - scrollY });
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -218,7 +219,7 @@
   surface.addEventListener('pointermove',(event)=>{if(!enabled||!draft)return;const point=eventPoint(event);if(draft.type==='polygon')draft.hover=point;else if(dragging)draft.points[1]=point;renderDraft();});
   surface.addEventListener('pointerup',(event)=>{if(!dragging||!draft||draft.type==='polygon')return;dragging=false;surface.releasePointerCapture(event.pointerId);if(distance(draft.points[0],draft.points[1])<6){cancelDraft();return;}finishDraft();event.preventDefault();});
 
-  root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';const savedSelection=selectionFromDraft();try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:savedSelection,selections:[savedSelection],elements:savedSelection.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);updateCount();cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
+  root.querySelector('.save').addEventListener('click',async()=>{if(!draft||!textArea.value.trim()){status.textContent='Write a note before saving.';return;}status.textContent='Saving…';const savedSelection=selectionFromDraft();try{const response=await fetch(`${api}/api/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:pageUrl(),workspace:workspace(),title:document.title,note:textArea.value,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio,scrollX,scrollY},selection:savedSelection,selections:[savedSelection],elements:savedSelection.elements})});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`save_failed_${response.status}`);notes.push(result.note);updateCount();cancelDraft();render();}catch(error){status.textContent=`Could not save: ${error.message}`;}});
   root.querySelector('.cancel').addEventListener('click',cancelDraft);
   root.querySelector('.cancel-bottom').addEventListener('click',cancelDraft);
   root.querySelector('.viewer-close').addEventListener('click',()=>closeViewer());
@@ -231,6 +232,16 @@
   root.querySelector('.delete-note').addEventListener('click',async(event)=>{const note=notes.find(item=>item.id===viewedNoteId);if(!note)return;if(!await confirmNotice(`Delete note ${note.number} permanently? This cannot be undone.`,{confirmLabel:'Delete',returnFocus:event.currentTarget}))return;viewerStatus.textContent='Deleting…';try{const response=await fetch(`${api}/api/notes/${encodeURIComponent(note.id)}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`delete_failed_${response.status}`);notes=notes.filter(item=>item.id!==note.id);updateCount();closeViewer(true);render();showNotice(`Note ${note.number} deleted.`);}catch(error){viewerStatus.textContent='';showNotice(`Could not delete note: ${error.message}`,{tone:'error',duration:0});}});
   clearPageButton.addEventListener('click',async(event)=>{if(!notes.length)return;const total=notes.length;if(!await confirmNotice(`Clear ${total} note${total===1?'':'s'} from this page permanently?`,{confirmLabel:'Clear notes',returnFocus:event.currentTarget}))return;clearPageButton.disabled=true;try{const response=await fetch(`${api}/api/notes?url=${encodeURIComponent(pageUrl())}`,{method:'DELETE'});const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||`clear_failed_${response.status}`);notes=[];closeViewer(true);cancelDraft();updateCount();render();showNotice(`${result.deletedCount} page note${result.deletedCount===1?'':'s'} cleared.`);}catch(error){clearPageButton.disabled=false;showNotice(`Could not clear page notes: ${error.message}`,{tone:'error',duration:0});}});
   root.addEventListener('pointerdown',(event)=>{if(event.target.closest?.('[data-note-id]'))event.stopPropagation();});root.addEventListener('click',(event)=>{const annotation=event.target.closest?.('[data-note-id]');if(annotation){event.preventDefault();event.stopPropagation();showViewer(annotation.dataset.noteId,annotation.dataset.selectionIndex);}});root.addEventListener('keydown',(event)=>{const marker=event.target.closest?.('.marker');if(marker&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showViewer(marker.dataset.noteId,marker.dataset.selectionIndex);}});
+
+  // Interactive host pages often bind Space and printable keys to their own
+  // canvas. Keep note-writing keystrokes inside DevNotes' shadow surface.
+  function isolateEditorKey(event) {
+    if (!event.target.closest?.('textarea,input,select,[contenteditable="true"]')) return;
+    if (event.key !== 'Escape' && event.key !== 'Enter') event.stopPropagation();
+  }
+  root.addEventListener('keydown',isolateEditorKey);
+  root.addEventListener('keypress',isolateEditorKey);
+  root.addEventListener('keyup',isolateEditorKey);
 
   modeButton.addEventListener('click',()=>{if(addingSelection){cancelAddingSelection();return;}if(enabled){if(!closeViewer())return;cancelDraft();setEnabled(false);}else setEnabled(true);});
   toolSelect.addEventListener('change',()=>{if(addingSelection){draft=null;draftLayer.replaceChildren();vertices.replaceChildren();setEnabled(true);persistPreferences();return;}if(!closeViewer())return;cancelDraft();setEnabled(true);persistPreferences();});

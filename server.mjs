@@ -29,6 +29,29 @@ const headers = {
   'Cache-Control': 'no-store',
 };
 
+function workspaceFromUrl(value) {
+  try { return new URL(value).origin; } catch { return null; }
+}
+
+function normalizedWorkspace(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  return workspaceFromUrl(value);
+}
+
+function noteWorkspace(note) {
+  return normalizedWorkspace(note?.workspace) || workspaceFromUrl(note?.url);
+}
+
+function inWorkspace(note, workspace) {
+  return !workspace || noteWorkspace(note) === workspace;
+}
+
+function workspacePageSequences(pageSequences, workspace) {
+  if (!workspace) return { ...(pageSequences || {}) };
+  return Object.fromEntries(Object.entries(pageSequences || {})
+    .filter(([pageUrl]) => workspaceFromUrl(pageUrl) === workspace));
+}
+
 async function readNotes() {
   try {
     const value = JSON.parse(await readFile(notesPath, 'utf8'));
@@ -154,13 +177,13 @@ async function removeOrphanedThumbnails(notes) {
   return kept;
 }
 
-function pageCount(notes) {
-  return new Set(notes.map((note) => note.url).filter(Boolean)).size;
+function pageCount(notes, workspace = null) {
+  return new Set(notes.filter((note) => inWorkspace(note, workspace)).map((note) => note.url).filter(Boolean)).size;
 }
 
-function pageSummaries(notes, notebook) {
+function pageSummaries(notes, notebook, workspace = null) {
   const pages = new Map();
-  for (const note of notes) {
+  for (const note of notes.filter((item) => inWorkspace(item, workspace))) {
     const page = pages.get(note.url) || {
       url: note.url,
       title: note.title || note.url,
@@ -189,7 +212,33 @@ function snapshotSummary(snapshot) {
     sourceRevision: snapshot.sourceRevision,
     noteCount: snapshot.noteCount,
     pageCount: snapshot.pageCount,
+    workspace: snapshot.workspace || null,
   };
+}
+
+function workspaceSummaries(notes, notebook) {
+  const workspaces = new Map();
+  const ensure = (key) => {
+    if (!key) return null;
+    if (!workspaces.has(key)) workspaces.set(key, { workspace: key, noteCount: 0, pages: new Set(), latestAt: null });
+    return workspaces.get(key);
+  };
+  for (const note of notes) {
+    const entry = ensure(noteWorkspace(note));
+    if (!entry) continue;
+    entry.noteCount += 1;
+    if (note.url) entry.pages.add(note.url);
+    const changedAt = note.updatedAt || note.createdAt || null;
+    if (changedAt && (!entry.latestAt || changedAt > entry.latestAt)) entry.latestAt = changedAt;
+  }
+  for (const pageUrl of Object.keys(notebook.pageSequences || {})) ensure(workspaceFromUrl(pageUrl));
+  return [...workspaces.values()].map((entry) => ({
+    workspace: entry.workspace,
+    label: new URL(entry.workspace).host,
+    noteCount: entry.noteCount,
+    pageCount: entry.pages.size,
+    latestAt: entry.latestAt,
+  })).sort((a, b) => b.noteCount - a.noteCount || a.label.localeCompare(b.label));
 }
 
 async function saveWorkingMutation(notes, notebook) {
@@ -203,11 +252,14 @@ async function saveWorkingMutation(notes, notebook) {
   return nextNotebook;
 }
 
-async function createSnapshot({ label = '', reason = 'manual' } = {}) {
-  const notes = await readNotes();
+async function createSnapshot({ label = '', reason = 'manual', workspace = null } = {}) {
+  const allNotes = await readNotes();
+  const notes = workspace ? allNotes.filter((note) => inWorkspace(note, workspace)) : allNotes;
   const preferences = await readPreferences();
-  const thumbnails = await readThumbnails();
-  const notebook = await readNotebook(notes);
+  const allThumbnails = await readThumbnails();
+  const noteIds = new Set(notes.map((note) => note.id));
+  const thumbnails = workspace ? allThumbnails.filter((thumbnail) => noteIds.has(thumbnail.noteId)) : allThumbnails;
+  const notebook = await readNotebook(allNotes);
   const snapshots = await readSnapshots();
   const snapshot = {
     id: randomUUID(),
@@ -215,6 +267,7 @@ async function createSnapshot({ label = '', reason = 'manual' } = {}) {
     label: String(label || '').trim().slice(0, 200) || `Snapshot ${notebook.nextSnapshotNumber}`,
     createdAt: new Date().toISOString(),
     reason,
+    workspace,
     sourceRevision: notebook.revision,
     noteCount: notes.length,
     pageCount: pageCount(notes),
@@ -224,7 +277,7 @@ async function createSnapshot({ label = '', reason = 'manual' } = {}) {
     notebookState: {
       schemaVersion: notebook.schemaVersion,
       nextNoteNumber: notebook.nextNoteNumber,
-      pageSequences: structuredClone(notebook.pageSequences || {}),
+      pageSequences: structuredClone(workspacePageSequences(notebook.pageSequences, workspace)),
     },
   };
   snapshots.push(snapshot);
@@ -332,7 +385,7 @@ function loaderPage() {
   <style>
     :root{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#050505;background:#fefefe}
     *{box-sizing:border-box}body{margin:0;min-height:100svh;padding:clamp(1.25rem,5vw,4rem);display:grid;align-content:space-between;gap:4rem}
-    header,main,footer{width:min(72rem,100%)}header{display:flex;justify-content:space-between;gap:1rem;padding-bottom:1rem;border-bottom:1px solid}
+    header,main,footer{width:min(72rem,100%)}header{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding-bottom:1rem;border-bottom:1px solid}.header-status{display:flex;align-items:center;justify-content:flex-end;gap:.8rem}.workspace-select{max-width:min(46vw,24rem);border:0;border-bottom:1px solid;padding:.35rem 1.5rem .35rem .15rem;background:transparent;color:inherit;font:600 .7rem/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.05em}
     .label,.eyebrow{text-transform:uppercase;letter-spacing:.08em}h1{max-width:14ch;margin:0 0 1.25rem;font:500 clamp(2.5rem,7vw,5.5rem)/.96 Georgia,serif}h2{margin:0;font-size:1rem;text-transform:uppercase;letter-spacing:.08em}
     p,li,label,input{font-size:clamp(.85rem,1.3vw,1rem);line-height:1.55}.lede{max-width:64ch}.notebook{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.72fr);gap:clamp(2rem,6vw,5rem);margin-top:clamp(3rem,8vw,7rem)}
     .surface{border-top:1px solid;padding-top:1rem}.surface-heading{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}.working-summary{margin:2rem 0 1rem;color:#555}.page-list{margin:0;padding:0;list-style:none;border-bottom:1px solid #ddd}.page-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:.8rem 0;border-top:1px solid #ddd}.page-copy{min-width:0}.page-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem}.page-meta{display:block;margin-top:.2rem;color:#777;font-size:.68rem}.page-reset{border:0;padding:.25rem 0;text-decoration:underline;text-underline-offset:3px}.snapshot-form{display:grid;grid-template-columns:1fr auto;gap:.65rem;margin-top:1.25rem}.snapshot-form input{min-width:0;border:0;border-bottom:1px solid;padding:.7rem 0;background:transparent}.snapshot-form button{border:0;border-bottom:1px solid;padding:.7rem .1rem}
@@ -342,7 +395,7 @@ function loaderPage() {
   </style>
 </head>
 <body>
-  <header><span class="label">DevNotes Beta 2</span><span id="working-status">Opening notebook…</span></header>
+  <header><span class="label">DevNotes Beta 2</span><span class="header-status"><select id="workspace-select" class="workspace-select" aria-label="Notebook site"><option value="">All sites</option></select><span id="working-status">Opening notebook…</span></span></header>
   <main>
     <h1>Draw on the live page.</h1>
     <p class="lede">The working notebook autosaves every note, reply, edit and deletion. Save an immutable snapshot whenever you want a deliberate boundary.</p>
@@ -387,6 +440,7 @@ function loaderPage() {
     const form=document.querySelector('#snapshot-form');
     const label=document.querySelector('#snapshot-label');
     const pageList=document.querySelector('#page-list');
+    const workspaceSelect=document.querySelector('#workspace-select');
     const thumbnailList=document.querySelector('#thumbnail-list');
     const thumbnailStatus=document.querySelector('#thumbnail-status');
     const thumbnailButton=document.querySelector('#refresh-thumbnails');
@@ -397,6 +451,9 @@ function loaderPage() {
     const actionConfirm=document.querySelector('#action-confirm');
     let actionNoticeTimer=null;
     let pendingActionNotice=null;
+    let activeWorkspace=new URL(location.href).searchParams.get('workspace')||'';
+    function scoped(path){if(!activeWorkspace)return path;const joiner=path.includes('?')?'&':'?';return path+joiner+'workspace='+encodeURIComponent(activeWorkspace);}
+    function renderWorkspaces(workspaces){const current=activeWorkspace;workspaceSelect.replaceChildren();const all=document.createElement('option');all.value='';all.textContent='All sites';workspaceSelect.append(all);for(const item of workspaces){const option=document.createElement('option');option.value=item.workspace;option.textContent=item.label+' · '+counted(item.noteCount,'note');workspaceSelect.append(option);}workspaceSelect.value=current;}
     function when(value){if(!value)return'Not changed yet';return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));}
     function counted(value,singular){return value+' '+singular+(value===1?'':'s');}
     function settleActionNotice(accepted=false){if(actionNoticeTimer){clearTimeout(actionNoticeTimer);actionNoticeTimer=null;}actionNotice.hidden=true;actionButtons.hidden=true;actionCancel.textContent='Cancel';actionConfirm.hidden=false;actionNotice.removeAttribute('data-tone');actionNotice.removeAttribute('aria-label');actionNotice.setAttribute('role','status');const pending=pendingActionNotice;pendingActionNotice=null;if(pending){if(pending.returnFocus&&pending.returnFocus.isConnected)pending.returnFocus.focus({preventScroll:true});pending.resolve(accepted);}}
@@ -404,7 +461,9 @@ function loaderPage() {
     function confirmActionNotice(message,{confirmLabel='Confirm',returnFocus=document.activeElement}={}){settleActionNotice(false);actionMessage.textContent=message;actionNotice.dataset.tone='confirm';actionNotice.setAttribute('role','alertdialog');actionNotice.setAttribute('aria-label','Confirmation');actionCancel.textContent='Cancel';actionConfirm.hidden=false;actionConfirm.textContent=confirmLabel;actionButtons.hidden=false;actionNotice.hidden=false;return new Promise(resolve=>{pendingActionNotice={resolve,returnFocus};queueMicrotask(()=>actionCancel.focus({preventScroll:true}));});}
     async function request(path,options){const response=await fetch(path,options);const result=await response.json();if(!response.ok||result.ok===false)throw new Error(result.error||('Request failed '+response.status));return result;}
     async function refresh(){
-      const [working,snapshots,thumbnailResult]=await Promise.all([request('/api/notebook'),request('/api/snapshots'),request('/api/thumbnails')]);
+      const workspaceResult=await request('/api/workspaces');
+      renderWorkspaces(workspaceResult.workspaces);
+      const [working,snapshots,thumbnailResult]=await Promise.all([request(scoped('/api/notebook')),request(scoped('/api/snapshots')),request(scoped('/api/thumbnails'))]);
       document.querySelector('#working-status').textContent=counted(working.notebook.noteCount,'note')+' · '+counted(working.notebook.pageCount,'page');
       document.querySelector('#working-summary').textContent='Revision '+working.notebook.revision+' · '+counted(working.notebook.noteCount,'note')+' across '+counted(working.notebook.pageCount,'page')+' · '+when(working.notebook.updatedAt);
       pageList.replaceChildren();
@@ -437,7 +496,8 @@ function loaderPage() {
         copy.append(number,note,state);card.append(image,copy);thumbnailList.append(card);
       }
     }
-    form.addEventListener('submit',async(event)=>{event.preventDefault();status.textContent='Saving snapshot…';try{const result=await request('/api/snapshots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label.value})});label.value='';status.textContent='';await refresh();showActionNotice('Snapshot '+String(result.snapshot.number).padStart(2,'0')+' saved.');}catch(error){status.textContent='';showActionNotice('Could not save snapshot: '+error.message,{tone:'error',duration:0});}});
+    form.addEventListener('submit',async(event)=>{event.preventDefault();status.textContent='Saving snapshot…';try{const result=await request('/api/snapshots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:label.value,workspace:activeWorkspace||null})});label.value='';status.textContent='';await refresh();showActionNotice('Snapshot '+String(result.snapshot.number).padStart(2,'0')+' saved.');}catch(error){status.textContent='';showActionNotice('Could not save snapshot: '+error.message,{tone:'error',duration:0});}});
+    workspaceSelect.addEventListener('change',()=>{activeWorkspace=workspaceSelect.value;const next=new URL(location.href);if(activeWorkspace)next.searchParams.set('workspace',activeWorkspace);else next.searchParams.delete('workspace');history.replaceState(null,'',next);refresh().catch(error=>showActionNotice('Could not switch site: '+error.message,{tone:'error',duration:0}));});
     thumbnailButton.addEventListener('click',async()=>{thumbnailButton.disabled=true;thumbnailStatus.textContent='Capturing each note…';try{const result=await request('/api/thumbnails/refresh',{method:'POST'});thumbnailStatus.textContent='';await refresh();showActionNotice(result.output||'Thumbnails refreshed.');}catch(error){thumbnailStatus.textContent='';showActionNotice('Could not refresh captures: '+error.message,{tone:'error',duration:0});}finally{thumbnailButton.disabled=false;}});
     document.querySelector('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(${JSON.stringify(bookmarklet)});showActionNotice('Loader copied.');}catch(error){showActionNotice('Could not copy loader: '+error.message,{tone:'error',duration:0});}});
     document.querySelector('#copy-beta3').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(${JSON.stringify(beta3Bookmarklet)});showActionNotice('Beta 3 loader copied.');}catch(error){showActionNotice('Could not copy Beta 3 loader: '+error.message,{tone:'error',duration:0});}});
@@ -516,26 +576,43 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/notebook') {
       const notes = await readNotes();
       const notebook = await readNotebook(notes);
+      const workspace = normalizedWorkspace(url.searchParams.get('workspace'));
+      const visibleNotes = notes.filter((note) => inWorkspace(note, workspace));
       json(response, 200, {
         notebook: {
           ...notebook,
-          noteCount: notes.length,
-          pageCount: pageCount(notes),
-          pages: pageSummaries(notes, notebook),
+          workspace,
+          pageSequences: workspacePageSequences(notebook.pageSequences, workspace),
+          noteCount: visibleNotes.length,
+          pageCount: pageCount(visibleNotes),
+          pages: pageSummaries(visibleNotes, notebook),
         },
       });
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/workspaces') {
+      const notes = await readNotes();
+      const notebook = await readNotebook(notes);
+      json(response, 200, { workspaces: workspaceSummaries(notes, notebook) });
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/snapshots') {
       const snapshots = await readSnapshots();
-      json(response, 200, { snapshots: snapshots.map(snapshotSummary) });
+      const workspace = normalizedWorkspace(url.searchParams.get('workspace'));
+      json(response, 200, {
+        snapshots: snapshots.filter((snapshot) => !workspace || snapshot.workspace === workspace).map(snapshotSummary),
+      });
       return;
     }
 
     if (request.method === 'GET' && url.pathname === '/api/thumbnails') {
       const thumbnails = await readThumbnails();
-      json(response, 200, { thumbnails });
+      const workspace = normalizedWorkspace(url.searchParams.get('workspace'));
+      json(response, 200, {
+        thumbnails: thumbnails.filter((thumbnail) => !workspace || workspaceFromUrl(thumbnail.url) === workspace),
+      });
       return;
     }
 
@@ -584,7 +661,11 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/api/snapshots') {
       const input = await readBody(request);
-      const snapshot = await createSnapshot({ label: input?.label, reason: 'manual' });
+      const snapshot = await createSnapshot({
+        label: input?.label,
+        reason: 'manual',
+        workspace: normalizedWorkspace(input?.workspace),
+      });
       json(response, 201, { ok: true, snapshot: snapshotSummary(snapshot) });
       return;
     }
@@ -609,21 +690,40 @@ const server = createServer(async (request, response) => {
         json(response, 404, { ok: false, error: 'snapshot_not_found' });
         return;
       }
-      const safety = await createSnapshot({ label: `Before restore: ${snapshot.label}`, reason: 'before-restore' });
+      const workspace = normalizedWorkspace(snapshot.workspace);
+      const safety = await createSnapshot({
+        label: `Before restore: ${snapshot.label}`,
+        reason: 'before-restore',
+        workspace,
+      });
       const currentNotes = await readNotes();
       const currentNotebook = await readNotebook(currentNotes);
-      const restoredNotes = structuredClone(snapshot.notes || []);
-      await writePreferences(structuredClone(snapshot.preferences || { color: '#111111', tool: 'polygon' }));
-      await writeThumbnails(structuredClone(snapshot.thumbnails || []));
-      const restoredPageSequences = pageSequencesFor(
-        restoredNotes,
+      const snapshotNotes = structuredClone(snapshot.notes || []);
+      const restoredNotes = workspace
+        ? [...currentNotes.filter((note) => !inWorkspace(note, workspace)), ...snapshotNotes]
+        : snapshotNotes;
+      if (!workspace) await writePreferences(structuredClone(snapshot.preferences || { color: '#111111', tool: 'polygon' }));
+      if (workspace) {
+        const currentThumbnails = await readThumbnails();
+        const keptThumbnails = currentThumbnails.filter((thumbnail) => workspaceFromUrl(thumbnail.url) !== workspace);
+        await writeThumbnails([...keptThumbnails, ...structuredClone(snapshot.thumbnails || [])]);
+      } else await writeThumbnails(structuredClone(snapshot.thumbnails || []));
+      const snapshotPageSequences = pageSequencesFor(
+        snapshotNotes,
         snapshot.notebookState?.pageSequences,
       );
+      const restoredPageSequences = workspace
+        ? {
+          ...Object.fromEntries(Object.entries(currentNotebook.pageSequences || {})
+            .filter(([pageUrl]) => workspaceFromUrl(pageUrl) !== workspace)),
+          ...snapshotPageSequences,
+        }
+        : snapshotPageSequences;
       const notebook = await saveWorkingMutation(restoredNotes, {
         ...currentNotebook,
-        nextNoteNumber: Number.isInteger(snapshot.notebookState?.nextNoteNumber)
+        nextNoteNumber: !workspace && Number.isInteger(snapshot.notebookState?.nextNoteNumber)
           ? snapshot.notebookState.nextNoteNumber
-          : Math.max(0, ...restoredNotes.map((note) => Number(note.number) || 0)) + 1,
+          : Math.max(currentNotebook.nextNoteNumber || 1, Math.max(0, ...restoredNotes.map((note) => Number(note.number) || 0)) + 1),
         pageSequences: restoredPageSequences,
       });
       json(response, 200, {
@@ -662,6 +762,7 @@ const server = createServer(async (request, response) => {
         status: 'open',
         replies: [],
         ...input,
+        workspace: normalizedWorkspace(input.workspace) || workspaceFromUrl(input.url),
         note: input.note.trim(),
         selection: selections[0],
         selections,
@@ -696,6 +797,7 @@ const server = createServer(async (request, response) => {
       const snapshot = await createSnapshot({
         label: `Before numbering reset: ${pageTitle}`,
         reason: 'before-numbering-reset',
+        workspace: workspaceFromUrl(pageUrl),
       });
       const numbers = new Map(pageNotes.map((note, index) => [note.id, index + 1]));
       const resetAt = new Date().toISOString();

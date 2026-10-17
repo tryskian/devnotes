@@ -69,12 +69,16 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   assert.match(dashboardSource, /confirmActionNotice/);
   assert.match(dashboardSource, /Load Beta 3/);
   assert.match(dashboardSource, /Copy Beta 3 loader/);
+  assert.match(dashboardSource, /id="workspace-select"/);
+  assert.match(dashboardSource, /\/api\/workspaces/);
   assert.doesNotMatch(dashboardSource, /if\(!confirm\(/);
 
   const clientSource = await (await fetch(`${origin}/client.js`)).text();
   assert.match(clientSource, /class="notice"/);
   assert.match(clientSource, /confirmNotice\(`Delete note/);
   assert.match(clientSource, /confirmNotice\(`Clear \$\{total\} note/);
+  assert.match(clientSource, /function isolateEditorKey/);
+  assert.match(clientSource, /workspace:workspace\(\)/);
 
   const beta3Response = await fetch(`${origin}/beta3.js`);
   assert.equal(beta3Response.status, 200);
@@ -88,6 +92,11 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   assert.match(beta3Source, /format-inline-text/);
   assert.match(beta3Source, /alignmentCandidates/);
   assert.match(beta3Source, /guide-v/);
+  assert.match(beta3Source, /makeFloatingPanelDraggable/);
+  assert.match(beta3Source, /data-size-delta="8"/);
+  assert.match(beta3Source, /Inline CSS/);
+  assert.match(beta3Source, /set-css-property/);
+  assert.match(beta3Source, /hide-ui/);
 
   const preflightResponse = await fetch(`${origin}/api/notes/test-note`, {
     method: 'OPTIONS',
@@ -277,6 +286,49 @@ test('working notes, replies, snapshots, numbering reset, restore, deletion, and
   assert.equal(pageATextNote.number, 4);
   const pageBNote = await createNote(pageB, 'Page B note');
   assert.equal(pageBNote.number, 1);
+
+  const pageC = 'https://small-systems-playground.sleek-titan-2669.chatgpt.site/';
+  const pageCNote = await createNote(pageC, 'External project note');
+  assert.equal(pageCNote.number, 1);
+  assert.equal(pageCNote.workspace, 'https://small-systems-playground.sleek-titan-2669.chatgpt.site');
+
+  const workspaces = await (await fetch(`${origin}/api/workspaces`)).json();
+  assert.deepEqual(workspaces.workspaces.map((item) => item.workspace).sort(), [
+    'http://127.0.0.1:4331',
+    'https://small-systems-playground.sleek-titan-2669.chatgpt.site',
+  ]);
+  const externalNotebook = await (await fetch(`${origin}/api/notebook?workspace=${encodeURIComponent(pageC)}`)).json();
+  assert.equal(externalNotebook.notebook.workspace, 'https://small-systems-playground.sleek-titan-2669.chatgpt.site');
+  assert.equal(externalNotebook.notebook.noteCount, 1);
+  assert.equal(externalNotebook.notebook.pageCount, 1);
+  assert.deepEqual(externalNotebook.notebook.pages.map((page) => page.url), [pageC]);
+  const portfolioNotebook = await (await fetch(`${origin}/api/notebook?workspace=${encodeURIComponent(pageA)}`)).json();
+  assert.equal(portfolioNotebook.notebook.noteCount, 4);
+  assert.ok(portfolioNotebook.notebook.pages.every((page) => page.url.startsWith('http://127.0.0.1:4331/')));
+
+  const siteSnapshotResponse = await fetch(`${origin}/api/snapshots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: 'External site only', workspace: pageC }),
+  });
+  assert.equal(siteSnapshotResponse.status, 201);
+  const siteSnapshot = (await siteSnapshotResponse.json()).snapshot;
+  assert.equal(siteSnapshot.workspace, 'https://small-systems-playground.sleek-titan-2669.chatgpt.site');
+  const scopedSnapshots = await (await fetch(`${origin}/api/snapshots?workspace=${encodeURIComponent(pageC)}`)).json();
+  assert.deepEqual(scopedSnapshots.snapshots.map((item) => item.id), [siteSnapshot.id]);
+
+  const externalEditResponse = await fetch(`${origin}/api/notes/${pageCNote.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: 'Changed external note' }),
+  });
+  assert.equal(externalEditResponse.status, 200);
+  const scopedRestoreResponse = await fetch(`${origin}/api/snapshots/${siteSnapshot.id}/restore`, { method: 'POST' });
+  assert.equal(scopedRestoreResponse.status, 200);
+  const restoredExternal = await (await fetch(`${origin}/api/notes?url=${encodeURIComponent(pageC)}`)).json();
+  assert.equal(restoredExternal.notes[0].note, 'External project note');
+  const portfolioAfterScopedRestore = await (await fetch(`${origin}/api/notebook?workspace=${encodeURIComponent(pageA)}`)).json();
+  assert.equal(portfolioAfterScopedRestore.notebook.noteCount, 4);
 
   const pageAThumbnailResponse = await fetch(`${origin}/api/thumbnails`, {
     method: 'POST',

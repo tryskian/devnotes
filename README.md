@@ -27,6 +27,9 @@ Beta 2 turns the successful annotation loop into a working notebook:
    notebook. Notebook snapshots preserve those visual receipts too.
 7. The dashboard can reset one page's visible notation after preserving an
    automatic snapshot. Stable note IDs and notebook evidence remain intact.
+8. The dashboard can scope pages, snapshots and thumbnails to one annotated
+   site. Existing notes stay in the same private ledger while portfolio and
+   external-project history remain visibly separate.
 
 See [`docs/BETA-2.md`](docs/BETA-2.md) for the current boundary. The original
 annotation-loop record remains in [`docs/BETA-1.md`](docs/BETA-1.md).
@@ -62,6 +65,12 @@ preserves the directory without publishing private note content.
 The dashboard also exposes a separate **Load Beta 3** bookmarklet. It freezes
 the current viewport into an editable layered overlay. Exiting Beta 3 restores
 the ordinary DevNotes overlay when it was already present.
+
+The loaders also work on ordinary hosted HTTPS pages, including ChatGPT Sites,
+while the private loopback service is running. DevNotes keeps note-editor
+keystrokes inside its shadow surface, so a host page's Space shortcut cannot
+prevent ordinary spaces in notes. Beta 3 retains the hosted URL as the base for
+its frozen copy and never changes the hosted source.
 
 ## Tools
 
@@ -109,6 +118,8 @@ the ordinary DevNotes overlay when it was already present.
 - The DevNotes home shows the autosaved working notebook, creates named
   immutable snapshots and restores a snapshot only after creating a safety
   copy of the current state.
+- The DevNotes home can select one site workspace. Scoped snapshots and
+  restores affect only that origin's notes and visual receipts.
 - Each active page appears in the working-notebook dashboard with its note
   count and next number. Reset numbering compacts the page to `01, 02, 03…`,
   snapshots the earlier notation first, and preserves notes, selections and
@@ -120,10 +131,12 @@ the ordinary DevNotes overlay when it was already present.
 
 ## Beta 2 limitations
 
-- No browser extension, source maps, multi-notebook switcher or formal MCP
-  server yet.
-- The bookmarklet works on local HTTP pages while the loopback service is
-  running.
+- No browser extension, source maps or formal MCP server yet.
+- Site workspaces are origin-scoped views over one private ledger, not separate
+  databases or collaborative notebooks.
+- The bookmarklet works on local HTTP and hosted HTTPS pages while the loopback
+  service is running. A host can still impose browser security policy that
+  blocks loopback scripts.
 - Element re-anchoring is a bounded first rule, not a complete semantic layout
   mapping system.
 - Thumbnail refresh requires every annotated URL to be available and an actual
@@ -135,6 +148,7 @@ the ordinary DevNotes overlay when it was already present.
 ```sh
 npm run check
 npm test
+npm run verify:client
 npm run thumbnails
 npm run verify:beta3
 curl http://127.0.0.1:4347/health

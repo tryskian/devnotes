@@ -1,5 +1,27 @@
 (() => {
+  function restoreCanvasCursor(canvas) {
+    if (!canvas) return;
+    const id = 'devnotes-beta3-cursor-policy';
+    canvas.querySelector(`#${id}`)?.remove();
+    const style = canvas.ownerDocument.createElement('style');
+    style.id = id;
+    // A frozen page has no cursor script. Keep editor pointers independent of
+    // the captured page's cursor:none/transparent rules, including !important.
+    // The first cascade layer wins for important declarations.
+    style.textContent = `
+      @layer devnotes-canvas-cursor {
+        html,body,body *,body *::before,body *::after{cursor:default!important}
+        [contenteditable="true"],[contenteditable="true"] *{cursor:text!important}
+        .landing-cursor,[data-live-cursor]{display:none!important}
+      }
+    `;
+    canvas.querySelector('head')?.prepend(style);
+  }
+
   if (window.__devNotesBeta3) {
+    // Re-running the existing loader repairs the canvas without losing edits,
+    // selection or undo history in an already-open experiment.
+    restoreCanvasCursor(document.getElementById('devnotes-beta3')?.shadowRoot?.querySelector('iframe')?.contentDocument?.documentElement);
     window.__devNotesBeta3.show();
     return;
   }
@@ -29,6 +51,7 @@
     [contenteditable="true"]{cursor:text!important;outline:2px solid #050505!important;outline-offset:3px!important}
   `;
   source.querySelector('head')?.append(frozenStyle);
+  restoreCanvasCursor(source);
 
   const frozenMarkup = `<!doctype html>${source.outerHTML}`;
   const host = document.createElement('div');
